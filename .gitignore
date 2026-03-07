@@ -1,0 +1,25 @@
+# Generated config files
+*.conf
+!gentoo.conf.example
+
+# Reference documents
+*.pdf
+
+# Editor swap/backup files
+*.swp
+*.swo
+*~
+\#*\#
+.*.swp
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# IDE / editor project files
+.vscode/
+.idea/
+*.iml
+
+# Temporary install artifacts (normally in /tmp, but just in case)
+/tmp/
