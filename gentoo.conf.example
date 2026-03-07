@@ -353,6 +353,9 @@ ENABLE_SSHD=true
 # Enable binary portage packages where available
 ENABLE_BINPKG=false
 
+# Enable the GURU overlay (Gentoo's user-maintained repository)
+ENABLE_GURU=false
+
 # Kernel type to install:
 #   "source" - Build kernel from source (sys-kernel/gentoo-kernel) [default]
 #   "bin"    - Install pre-built binary kernel (sys-kernel/gentoo-kernel-bin)

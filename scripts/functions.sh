@@ -7,11 +7,26 @@ source "$GENTOO_INSTALL_REPO_DIR/scripts/protection.sh" || exit 1
 
 function sync_time() {
 	einfo "Syncing time"
-	if command -v chrony &> /dev/null; then
+	if command -v chronyd &> /dev/null; then
 		# See https://github.com/oddlama/gentoo-install/pull/122
 		try chronyd -q
 	else
-		die "chrony is required for time synchronization but was not found"
+		ewarn "chrony is not available for time synchronization"
+		einfo "Current date: $(LANG=C date)"
+		if ask "Do you want to use the hardware clock instead?"; then
+			hwclock --hctosys --utc \
+				|| ewarn "Could not read time from hardware clock"
+			einfo "Current date: $(LANG=C date)"
+		elif ask "Do you want to set the time manually? (format: YYYY-MM-DD HH:MM:SS)"; then
+			local user_date
+			flush_stdin
+			read -r -p "Enter date and time (YYYY-MM-DD HH:MM:SS): " user_date \
+				|| die "Error reading date input"
+			date -s "$user_date" \
+				|| die "Could not set system date"
+		else
+			ewarn "Proceeding with current system time, this may cause issues"
+		fi
 	fi
 
 	einfo "Current date: $(LANG=C date)"
@@ -77,7 +92,7 @@ function prepare_installation_environment() {
 		gpg
 		hwclock
 		lsblk
-		chrony=chronyd
+		"?chrony=chronyd"
 		partprobe
 		python3
 		"?rhash"

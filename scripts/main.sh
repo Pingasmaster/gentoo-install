@@ -103,6 +103,12 @@ function configure_portage() {
 		try mirrorselect "${mirrorselect_params[@]}"
 	fi
 
+	# Set MAKEOPTS for parallel builds
+	local nproc
+	nproc="$(nproc || echo 2)"
+	einfo "Setting MAKEOPTS=\"-j${nproc}\" in make.conf"
+	echo "MAKEOPTS=\"-j${nproc}\"" >> /etc/portage/make.conf
+
 	if [[ $ENABLE_BINPKG == "true" ]]; then
 		echo 'FEATURES="getbinpkg binpkg-request-signature"' >> /etc/portage/make.conf
 		getuto
@@ -434,6 +440,14 @@ EOF
 		try emerge --sync
 	fi
 	maybe_exec 'after_configure_portage'
+
+	if [[ ${ENABLE_GURU:-false} == "true" ]]; then
+		einfo "Installing eselect-repository"
+		try emerge --verbose app-eselect/eselect-repository
+		einfo "Enabling guru overlay"
+		try eselect repository enable guru
+		try emerge --sync guru
+	fi
 
 	einfo "Generating ssh host keys"
 	try ssh-keygen -A

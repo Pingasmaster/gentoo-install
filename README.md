@@ -19,6 +19,8 @@ cd gentoo-install
 Every option is explained in `gentoo.conf.example` and in the TUI help menus.
 You will be asked to review partitioning before anything destructive happens.
 
+**Note:** The default configuration includes my personal SSH public key in `ROOT_SSH_AUTHORIZED_KEYS`. If you are not me, you should replace it with your own key or set the variable to an empty string (`ROOT_SSH_AUTHORIZED_KEYS=""`) in the TUI or config file before installing.
+
 If you need to chroot into an already installed system, mount your main drive under `/mnt` and run `./install --chroot /mnt`.
 
 ## Updating the kernel

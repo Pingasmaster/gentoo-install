@@ -243,6 +243,22 @@ PARTITIONING_BCACHEFS_ERROR_ACTIONS=("continue" "ro" "panic")
 PARTITIONING_BCACHEFS_CHECKSUM_TYPES=("none" "crc32c" "crc64")
 PARTITIONING_BCACHEFS_STR_HASH_TYPES=("crc32c" "crc64" "siphash")
 
+# Compute default swap size: 2x RAM, capped at 128GiB
+function compute_default_swap() {
+	local mem_kb
+	mem_kb=$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo 2>/dev/null) || mem_kb=0
+	if [[ "$mem_kb" -gt 0 ]]; then
+		local mem_gib=$(( (mem_kb + 524288) / 1048576 ))
+		local swap_gib=$(( mem_gib * 2 ))
+		[[ $swap_gib -gt 128 ]] && swap_gib=128
+		[[ $swap_gib -lt 1 ]] && swap_gib=1
+		echo "${swap_gib}GiB"
+	else
+		echo "8GiB"
+	fi
+}
+DEFAULT_SWAP_SIZE="$(compute_default_swap)"
+
 PORTAGE_SYNC_TYPES=("git" "rsync")
 KERNEL_TYPES=(
 	"source" "source | Build kernel from source (gentoo-kernel)"
@@ -256,7 +272,7 @@ function create_single_disk_layout() {
 function parse_swap() {
 	if [[ $1 == "false" ]]; then
 		PARTITIONING_USE_SWAP=false
-		PARTITIONING_SWAP=8GiB
+		PARTITIONING_SWAP="$DEFAULT_SWAP_SIZE"
 	else
 		PARTITIONING_USE_SWAP=true
 		PARTITIONING_SWAP="$1"
@@ -539,6 +555,7 @@ function load_default_config() {
 	ADDITIONAL_PACKAGES=()
 	ENABLE_SSHD=true
 	ENABLE_BINPKG=false
+	ENABLE_GURU=false
 	KERNEL_TYPE=source
 	ROOT_SSH_AUTHORIZED_KEYS="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID30WroYpFd5irJGCrqQ4sADugeMmUxqNEIFuuvTDULD user@pc"
 
@@ -1062,6 +1079,7 @@ MENU_ITEMS=(
 	"--------"
 	"ENABLE_SSHD"
 	"ENABLE_BINPKG"
+	"ENABLE_GURU"
 	"KERNEL_TYPE"
 	"ROOT_SSH_AUTHORIZED_KEYS"
 	"ADDITIONAL_PACKAGES"
@@ -1086,13 +1104,13 @@ function PARTITIONING_SCHEME_menu()  {
 	then
 		# Set disk scheme
 		case "$dialog_out" in
-			"classic_single_disk") create_classic_single_disk_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" luks=false root_fs=ext4 /dev/sdX ;;
+			"classic_single_disk") create_classic_single_disk_layout swap="$DEFAULT_SWAP_SIZE" type="$DEFAULT_BOOT_TYPE" luks=false root_fs=ext4 /dev/sdX ;;
 			"existing_partitions") create_existing_partitions_layout boot=/dev/sdA swap=false type="$DEFAULT_BOOT_TYPE" /dev/sdX ;;
-			"zfs_centric")         create_zfs_centric_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" encrypt=true compress=zstd pool_type=standard /dev/sdX ;;
-			"btrfs_centric")       create_btrfs_centric_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" raid_type=raid0 luks=false /dev/sdX ;;
-			"bcachefs_centric")    create_bcachefs_centric_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" encrypt=false luks=false compress=false /dev/sdX; KERNEL_TYPE=source ;;
-			"raid0_luks")          create_raid0_luks_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" luks=true root_fs=ext4 /dev/sdX /dev/sdY ;;
-			"raid1_luks")          create_raid1_luks_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" luks=true root_fs=ext4 /dev/sdX /dev/sdY ;;
+			"zfs_centric")         create_zfs_centric_layout swap="$DEFAULT_SWAP_SIZE" type="$DEFAULT_BOOT_TYPE" encrypt=true compress=zstd pool_type=standard /dev/sdX ;;
+			"btrfs_centric")       create_btrfs_centric_layout swap="$DEFAULT_SWAP_SIZE" type="$DEFAULT_BOOT_TYPE" raid_type=raid0 luks=false /dev/sdX ;;
+			"bcachefs_centric")    create_bcachefs_centric_layout swap="$DEFAULT_SWAP_SIZE" type="$DEFAULT_BOOT_TYPE" encrypt=false luks=false compress=false /dev/sdX; KERNEL_TYPE=source ;;
+			"raid0_luks")          create_raid0_luks_layout swap="$DEFAULT_SWAP_SIZE" type="$DEFAULT_BOOT_TYPE" luks=true root_fs=ext4 /dev/sdX /dev/sdY ;;
+			"raid1_luks")          create_raid1_luks_layout swap="$DEFAULT_SWAP_SIZE" type="$DEFAULT_BOOT_TYPE" luks=true root_fs=ext4 /dev/sdX /dev/sdY ;;
 			"custom")              PARTITIONING_SCHEME="$dialog_out" ;;
 		esac
 		UNSAVED_CHANGES=true
@@ -2128,6 +2146,15 @@ function ENABLE_BINPKG_menu()  {
 	UNSAVED_CHANGES=true
 }
 
+function ENABLE_GURU_tag()   { echo "Enable guru overlay"; }
+function ENABLE_GURU_label() { on_off_label "$ENABLE_GURU"; }
+function ENABLE_GURU_show()  { return 0; }
+function ENABLE_GURU_help()  { echo "Enable the GURU overlay (Gentoo's user repository). This installs app-eselect/eselect-repository and adds the guru overlay."; }
+function ENABLE_GURU_menu()  {
+	on_off_toggle "ENABLE_GURU"
+	UNSAVED_CHANGES=true
+}
+
 function KERNEL_TYPE_tag()   { echo "Kernel type"; }
 function KERNEL_TYPE_label() { echo "($KERNEL_TYPE)"; }
 function KERNEL_TYPE_show()  { return 0; }
@@ -2264,6 +2291,7 @@ MUSL=\$([[ \$STAGE3_VARIANT == *musl* ]] && echo "true" || echo "false")
 ADDITIONAL_PACKAGES=(${ADDITIONAL_PACKAGES[@]@Q})
 ENABLE_SSHD=${ENABLE_SSHD@Q}
 ENABLE_BINPKG=${ENABLE_BINPKG@Q}
+ENABLE_GURU=${ENABLE_GURU@Q}
 KERNEL_TYPE=${KERNEL_TYPE@Q}
 ROOT_SSH_AUTHORIZED_KEYS=${ROOT_SSH_AUTHORIZED_KEYS@Q}
 
