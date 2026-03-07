@@ -147,6 +147,8 @@ function generate_initramfs() {
 		&& modules+=("btrfs")
 	[[ $USED_ZFS == "true" ]] \
 		&& modules+=("zfs")
+	[[ $USED_BCACHEFS == "true" ]] \
+		&& modules+=("bcachefs")
 
 	local kver
 	kver="$(readlink /usr/src/linux)" \
@@ -445,8 +447,20 @@ EOF
 
 	# Install required programs and kernel now, in order to
 	# prevent emerging module before an imminent kernel upgrade
-	if [[ "${KERNEL_TYPE:-bin}" == "source" ]]; then
+	local kernel_type="${KERNEL_TYPE:-source}"
+	# bcachefs requires building kernel from source (not in mainline since 6.18+)
+	if [[ $USED_BCACHEFS == "true" ]]; then
+		kernel_type="source"
+	fi
+
+	if [[ "$kernel_type" == "source" ]]; then
 		einfo "Building kernel from source (sys-kernel/gentoo-kernel)"
+		if [[ $USED_BCACHEFS == "true" ]]; then
+			einfo "Setting up bcachefs kernel patches"
+			mkdir_or_die 0755 "/etc/portage/patches"
+			mkdir_or_die 0755 "/etc/portage/patches/sys-kernel"
+			mkdir_or_die 0755 "/etc/portage/patches/sys-kernel/gentoo-kernel"
+		fi
 		try emerge --verbose sys-kernel/dracut sys-kernel/gentoo-kernel app-arch/zstd
 	else
 		einfo "Installing binary kernel (sys-kernel/gentoo-kernel-bin)"
@@ -471,6 +485,12 @@ EOF
 	if [[ $USED_BTRFS == "true" ]]; then
 		einfo "Installing btrfs-progs"
 		try emerge --verbose sys-fs/btrfs-progs
+	fi
+
+	# Install bcachefs-tools if we used bcachefs
+	if [[ $USED_BCACHEFS == "true" ]]; then
+		einfo "Installing bcachefs-tools"
+		try emerge --verbose sys-fs/bcachefs-tools
 	fi
 
 	try emerge --verbose dev-vcs/git
@@ -566,6 +586,8 @@ EOF
 	einfo "Gentoo installation complete."
 	[[ $USED_LUKS == "true" ]] \
 		&& einfo "A backup of your luks headers can be found at '$LUKS_HEADER_BACKUP_DIR', in case you want to have a backup."
+	[[ $USED_BCACHEFS == "true" && $USED_ENCRYPTION == "true" && $USED_LUKS != "true" ]] \
+		&& einfo "Your bcachefs filesystem uses native encryption. Remember your passphrase."
 	einfo "You may now reboot your system or execute ./install --chroot $ROOT_MOUNTPOINT to enter your system in a chroot."
 	einfo "Chrooting in this way is always possible in case you need to fix something after rebooting."
 }

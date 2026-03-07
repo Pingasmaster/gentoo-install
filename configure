@@ -67,7 +67,7 @@ function get_timezone() {
 		timezone=${file#*zoneinfo/}
 		if [[ $timezone == "$file" ]]; then
 			# not pointing to expected location or not Region/City
-			echo "Europe/London"
+			echo "Europe/Paris"
 		else
 			echo "$timezone"
 		fi
@@ -155,6 +155,14 @@ function define_zfs_compression() {
 	fi
 }
 
+function define_bcachefs_compression() {
+	if [[ $PARTITIONING_BCACHEFS_USE_COMPRESSION != "false" ]]; then
+		echo -n "${PARTITIONING_BCACHEFS_COMPRESSION@Q}"
+	else
+		echo -n "false"
+	fi
+}
+
 function define_disk_layout() {
 	local swapdev
 	case "$PARTITIONING_SCHEME" in
@@ -168,6 +176,7 @@ function define_disk_layout() {
 		    define_disk_configuration_function "create_existing_partitions_layout boot=${PARTITIONING_BOOT_DEVICE@Q} swap=${swapdev@Q} type=${PARTITIONING_BOOT_TYPE@Q}" "${PARTITIONING_DEVICE@Q}" ;;
 		"zfs_centric")         define_disk_configuration_function "create_zfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_ZFS_USE_ENCRYPTION@Q} compress=$(define_zfs_compression) pool_type=${PARTITIONING_ZFS_POOL_TYPE@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"btrfs_centric")       define_disk_configuration_function "create_btrfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} raid_type=${PARTITIONING_BTRFS_RAID_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
+		"bcachefs_centric")    define_disk_configuration_function "create_bcachefs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_BCACHEFS_USE_ENCRYPTION@Q} luks=${PARTITIONING_USE_LUKS@Q} compress=$(define_bcachefs_compression)" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"raid0_luks")          define_disk_configuration_function "create_raid0_luks_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"raid1_luks")          define_disk_configuration_function "create_raid1_luks_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"custom")
@@ -204,6 +213,7 @@ ALL_PARTITIONING_SCHEMES=(
 	"existing_partitions" "Skip partitioning, use existing pre-formatted partitions"
 	"zfs_centric"         "ZFS centric (optional ZFS compression and encryption)"
 	"btrfs_centric"       "Btrfs centric (optional raid0/1 via btrfs)"
+	"bcachefs_centric"    "Bcachefs centric (optional native encryption and compression)"
 	"raid0_luks"          "Raid0 (N>=2 disks) and luks for root"
 	"raid1_luks"          "Raid1 (N>=2 disks) and luks for root"
 	"custom"              "Custom (expert option; edit the config manually later)"
@@ -213,15 +223,16 @@ PARTITIONING_BOOT_TYPES=(
 	"efi" "efi$([[ $HAS_EFI_SUPPORT == true ]] && echo -n "" || echo -n " (!! $EFI_UNSUPPORTED_MESSAGE_SHORT !!)")"
 	"bios" "bios"
 )
-PARTITIONING_ROOT_FS_TYPES=("ext4" "btrfs")
+PARTITIONING_ROOT_FS_TYPES=("ext4" "btrfs" "bcachefs")
 PARTITIONING_BTRFS_RAID_TYPES=("raid0" "raid1")
 PARTITIONING_ZFS_POOL_TYPES=("standard" "custom")
 PARTITIONING_ZFS_COMPRESSIONS=("on" "gzip" "lz4" "lzjb" "zle" "zstd" "zstd-fast")
+PARTITIONING_BCACHEFS_COMPRESSIONS=("zstd" "lz4" "gzip")
 
 PORTAGE_SYNC_TYPES=("git" "rsync")
 KERNEL_TYPES=(
-	"bin"    "bin    | Pre-built binary kernel (gentoo-kernel-bin)"
 	"source" "source | Build kernel from source (gentoo-kernel)"
+	"bin"    "bin    | Pre-built binary kernel (gentoo-kernel-bin)"
 )
 
 function create_single_disk_layout() {
@@ -245,6 +256,16 @@ function parse_zfs_compression() {
 	else
 		PARTITIONING_ZFS_USE_COMPRESSION=true
 		PARTITIONING_ZFS_COMPRESSION="$1"
+	fi
+}
+
+function parse_bcachefs_compression() {
+	if [[ $1 == "false" ]]; then
+		PARTITIONING_BCACHEFS_USE_COMPRESSION=false
+		PARTITIONING_BCACHEFS_COMPRESSION=zstd
+	else
+		PARTITIONING_BCACHEFS_USE_COMPRESSION=true
+		PARTITIONING_BCACHEFS_COMPRESSION="$1"
 	fi
 }
 
@@ -343,6 +364,21 @@ function create_btrfs_centric_layout() {
 	PARTITIONING_BTRFS_RAID_TYPE="${arguments[raid_type]:-raid0}"
 }
 
+function create_bcachefs_centric_layout() {
+	PARTITIONING_SCHEME="bcachefs_centric"
+
+	local known_arguments=('+swap' '?type' '?encrypt' '?luks' '?compress')
+	local extra_arguments=()
+	declare -A arguments; parse_arguments "$@"
+
+	PARTITIONING_DEVICES=("${extra_arguments[@]}")
+	parse_swap "${arguments[swap]}"
+	PARTITIONING_BOOT_TYPE="${arguments[type]}"
+	PARTITIONING_BCACHEFS_USE_ENCRYPTION="${arguments[encrypt]:-false}"
+	PARTITIONING_USE_LUKS="${arguments[luks]:-false}"
+	parse_bcachefs_compression "${arguments[compress]:-false}"
+}
+
 
 ################################################
 # Configuration constants
@@ -439,8 +475,12 @@ function load_default_config() {
 	ADDITIONAL_PACKAGES=()
 	ENABLE_SSHD=true
 	ENABLE_BINPKG=false
-	KERNEL_TYPE=bin
+	KERNEL_TYPE=source
 	ROOT_SSH_AUTHORIZED_KEYS="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID30WroYpFd5irJGCrqQ4sADugeMmUxqNEIFuuvTDULD user@pc"
+
+	PARTITIONING_BCACHEFS_USE_ENCRYPTION=false
+	PARTITIONING_BCACHEFS_USE_COMPRESSION=false
+	PARTITIONING_BCACHEFS_COMPRESSION=zstd
 
 	# All settings are unsaved.
 	UNSAVED_CHANGES=true
@@ -869,6 +909,9 @@ MENU_ITEMS=(
 	"PARTITIONING_ZFS_USE_COMPRESSION"
 	"PARTITIONING_ZFS_COMPRESSION"
 	"PARTITIONING_BTRFS_RAID_TYPE"
+	"PARTITIONING_BCACHEFS_USE_ENCRYPTION"
+	"PARTITIONING_BCACHEFS_USE_COMPRESSION"
+	"PARTITIONING_BCACHEFS_COMPRESSION"
 	"PARTITIONING_DEVICE"
 	"PARTITIONING_DEVICES"
 	"--------"
@@ -927,6 +970,7 @@ function PARTITIONING_SCHEME_menu()  {
 			"existing_partitions") create_existing_partitions_layout boot=/dev/sdA swap=false type="$DEFAULT_BOOT_TYPE" /dev/sdX ;;
 			"zfs_centric")         create_zfs_centric_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" encrypt=true compress=zstd pool_type=standard /dev/sdX ;;
 			"btrfs_centric")       create_btrfs_centric_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" raid_type=raid0 luks=false /dev/sdX ;;
+			"bcachefs_centric")    create_bcachefs_centric_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" encrypt=false luks=false compress=false /dev/sdX; KERNEL_TYPE=source ;;
 			"raid0_luks")          create_raid0_luks_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" luks=true root_fs=ext4 /dev/sdX /dev/sdY ;;
 			"raid1_luks")          create_raid1_luks_layout swap=8GiB type="$DEFAULT_BOOT_TYPE" luks=true root_fs=ext4 /dev/sdX /dev/sdY ;;
 			"custom")              PARTITIONING_SCHEME="$dialog_out" ;;
@@ -1037,7 +1081,7 @@ function PARTITIONING_SWAP_DEVICE_menu()  {
 function PARTITIONING_ROOT_FS_tag()   { echo " ├ Root filesystem"; }
 function PARTITIONING_ROOT_FS_label() { echo " ├ ($PARTITIONING_ROOT_FS)"; }
 function PARTITIONING_ROOT_FS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "classic_single_disk" "raid0_luks" "raid1_luks"; }
-function PARTITIONING_ROOT_FS_help()  { echo "Select the amount of swap to use."; }
+function PARTITIONING_ROOT_FS_help()  { echo "Select the root filesystem type."; }
 function PARTITIONING_ROOT_FS_menu()  {
 	if menu_radiolist \
 		"Select root fstype" \
@@ -1046,6 +1090,10 @@ function PARTITIONING_ROOT_FS_menu()  {
 		"${PARTITIONING_ROOT_FS_TYPES[@]}"
 	then
 		PARTITIONING_ROOT_FS="$dialog_out"
+		# bcachefs requires kernel source build
+		if [[ "$PARTITIONING_ROOT_FS" == "bcachefs" ]]; then
+			KERNEL_TYPE=source
+		fi
 		UNSAVED_CHANGES=true
 	else
 		# Return to menu
@@ -1055,10 +1103,14 @@ function PARTITIONING_ROOT_FS_menu()  {
 
 function PARTITIONING_USE_LUKS_tag()   { echo " ├ LUKS Encryption"; }
 function PARTITIONING_USE_LUKS_label() { on_off_label "$PARTITIONING_USE_LUKS" " ├ "; }
-function PARTITIONING_USE_LUKS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "classic_single_disk" "btrfs_centric" "raid0_luks" "raid1_luks"; }
+function PARTITIONING_USE_LUKS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "classic_single_disk" "btrfs_centric" "bcachefs_centric" "raid0_luks" "raid1_luks"; }
 function PARTITIONING_USE_LUKS_help()  { echo "Determines if LUKS will be used to encrypt your root partition. You can export the desired encryption key via export GENTOO_INSTALL_ENCRYPTION_KEY='...' before installing if you don't want to be asked."; }
 function PARTITIONING_USE_LUKS_menu()  {
 	on_off_toggle "PARTITIONING_USE_LUKS"
+	# Disable native bcachefs encryption if LUKS is enabled
+	if [[ "$PARTITIONING_USE_LUKS" == "true" && "${PARTITIONING_BCACHEFS_USE_ENCRYPTION:-false}" == "true" ]]; then
+		PARTITIONING_BCACHEFS_USE_ENCRYPTION=false
+	fi
 	UNSAVED_CHANGES=true
 }
 
@@ -1140,6 +1192,47 @@ function PARTITIONING_BTRFS_RAID_TYPE_menu()  {
 	fi
 }
 
+function PARTITIONING_BCACHEFS_USE_ENCRYPTION_tag()   { echo " ├ Bcachefs Native Encryption"; }
+function PARTITIONING_BCACHEFS_USE_ENCRYPTION_label() { on_off_label "$PARTITIONING_BCACHEFS_USE_ENCRYPTION" " ├ "; }
+function PARTITIONING_BCACHEFS_USE_ENCRYPTION_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_USE_ENCRYPTION_help()  { echo "Determines if bcachefs native encryption will be used. Cannot be combined with LUKS. You can export the desired encryption key via export GENTOO_INSTALL_ENCRYPTION_KEY='...' before installing."; }
+function PARTITIONING_BCACHEFS_USE_ENCRYPTION_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_USE_ENCRYPTION"
+	# Disable LUKS if native encryption is enabled
+	if [[ "$PARTITIONING_BCACHEFS_USE_ENCRYPTION" == "true" ]]; then
+		PARTITIONING_USE_LUKS=false
+	fi
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_USE_COMPRESSION_tag()   { echo " ├ Use Bcachefs Compression"; }
+function PARTITIONING_BCACHEFS_USE_COMPRESSION_label() { on_off_label "$PARTITIONING_BCACHEFS_USE_COMPRESSION" " ├ "; }
+function PARTITIONING_BCACHEFS_USE_COMPRESSION_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_USE_COMPRESSION_help()  { echo "Determines if compression should be enabled on the bcachefs filesystem."; }
+function PARTITIONING_BCACHEFS_USE_COMPRESSION_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_USE_COMPRESSION"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_COMPRESSION_tag()   { echo " │  └ Compression algorithm"; }
+function PARTITIONING_BCACHEFS_COMPRESSION_label() { echo " │  └ ($PARTITIONING_BCACHEFS_COMPRESSION)"; }
+function PARTITIONING_BCACHEFS_COMPRESSION_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric" && is_on "$PARTITIONING_BCACHEFS_USE_COMPRESSION"; }
+function PARTITIONING_BCACHEFS_COMPRESSION_help()  { echo "Determines the compression algorithm used on the bcachefs filesystem."; }
+function PARTITIONING_BCACHEFS_COMPRESSION_menu()  {
+	if menu_radiolist \
+		"Select bcachefs compression algorithm" \
+		"Select the compression algorithm for the bcachefs filesystem." \
+		"$PARTITIONING_BCACHEFS_COMPRESSION" \
+		"${PARTITIONING_BCACHEFS_COMPRESSIONS[@]}"
+	then
+		PARTITIONING_BCACHEFS_COMPRESSION="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		# Return to menu
+		true
+	fi
+}
+
 function PARTITIONING_DEVICE_tag()   { echo " └ Device"; }
 function PARTITIONING_DEVICE_label() {
 	local devshort=$PARTITIONING_DEVICE
@@ -1184,7 +1277,7 @@ function PARTITIONING_DEVICES_label() {
 		echo " └ (${#PARTITIONING_DEVICES[@]} devices)"
 	fi
 }
-function PARTITIONING_DEVICES_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "raid0_luks" "raid1_luks" "zfs_centric" "btrfs_centric"; }
+function PARTITIONING_DEVICES_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "raid0_luks" "raid1_luks" "zfs_centric" "btrfs_centric" "bcachefs_centric"; }
 function PARTITIONING_DEVICES_help()  { echo "The block devices to which the layout will be applied."; }
 function PARTITIONING_DEVICES_menu()  {
 	local invalid=()
@@ -1563,13 +1656,23 @@ function KERNEL_TYPE_label() { echo "($KERNEL_TYPE)"; }
 function KERNEL_TYPE_show()  { return 0; }
 function KERNEL_TYPE_help()  { echo "Select which kernel package to install. 'bin' installs the pre-built binary kernel (gentoo-kernel-bin), while 'source' builds the kernel from source (gentoo-kernel) using the same distribution config."; }
 function KERNEL_TYPE_menu()  {
+	local bcachefs_in_use=false
+	if [[ "${PARTITIONING_SCHEME:-}" == "bcachefs_centric" || "${PARTITIONING_ROOT_FS:-}" == "bcachefs" ]]; then
+		bcachefs_in_use=true
+	fi
+
 	if menu_radiolist_labeled \
 		"Select kernel type" \
-		"Select which kernel package to install. The 'bin' option installs a pre-built binary kernel, while 'source' compiles the kernel from source locally using the same distribution configuration." \
+		"Select which kernel package to install. The 'bin' option installs a pre-built binary kernel, while 'source' compiles the kernel from source locally using the same distribution configuration.$([[ $bcachefs_in_use == true ]] && echo -n " \Z1Note: bcachefs requires 'source' kernel type.\Zn")" \
 		"$KERNEL_TYPE" \
 		"${KERNEL_TYPES[@]}"
 	then
-		KERNEL_TYPE="$dialog_out"
+		if [[ "$dialog_out" == "bin" && $bcachefs_in_use == true ]]; then
+			# Cannot use binary kernel with bcachefs
+			KERNEL_TYPE=source
+		else
+			KERNEL_TYPE="$dialog_out"
+		fi
 		UNSAVED_CHANGES=true
 	else
 		# Return to menu

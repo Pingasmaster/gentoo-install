@@ -38,7 +38,7 @@ function disk_configuration() {
 	#                         at all if set to false.
 	#   type=[efi|bios]       Selects the boot type. Defaults to efi if not given.
 	#   luks=[true|false]     Encrypt root partition. Defaults to false if not given.
-	#   root_fs=[ext4|btrfs]  Root filesystem. Defaults to ext4 if not given.
+	#   root_fs=[ext4|btrfs|bcachefs]  Root filesystem. Defaults to ext4 if not given.
 	#create_classic_single_disk_layout swap=8GiB type=efi luks=true root_fs=ext4 /dev/sdX
 
 	# 2. create_zfs_centric_layout
@@ -71,7 +71,7 @@ function disk_configuration() {
 	#                         or no swap at all if set to false.
 	#   type=[efi|bios]       Selects the boot type. Defaults to efi if not given.
 	#   luks=[true|false]     Encrypt root partition. Defaults to true if not given.
-	#   root_fs=[ext4|btrfs]  Root filesystem. Defaults to ext4 if not given.
+	#   root_fs=[ext4|btrfs|bcachefs]  Root filesystem. Defaults to ext4 if not given.
 	# Careful: You will get N times the swap amount, so be sure to divide beforehand.
 	#create_raid0_luks_layout swap=4GiB type=efi root_fs=ext4 /dev/sd{X,Y}
 
@@ -87,7 +87,7 @@ function disk_configuration() {
 	#                         or no swap at all if set to false.
 	#   type=[efi|bios]       Selects the boot type. Defaults to efi if not given.
 	#   luks=[true|false]     Encrypt root partition. Defaults to true if not given.
-	#   root_fs=[ext4|btrfs]  Root filesystem. Defaults to ext4 if not given.
+	#   root_fs=[ext4|btrfs|bcachefs]  Root filesystem. Defaults to ext4 if not given.
 	# Careful: You will get N times the swap amount, so be sure to divide beforehand.
 	#create_raid1_luks_layout swap=4GiB type=efi root_fs=ext4 /dev/sd{X,Y}
 
@@ -109,11 +109,34 @@ function disk_configuration() {
 	#   raid_type=[raid0|raid1]  Select raid type. Defaults to raid0.
 	#create_btrfs_centric_layout swap=8GiB luks=false raid_type=raid0 /dev/sd{X,Y}
 	#create_btrfs_centric_layout swap=8GiB luks=true /dev/sdX
+
+	# 6. create_bcachefs_centric_layout
+	#
+	# A modern disk layout designed around bcachefs. This layout uses bcachefs as
+	# the root filesystem with built-in multi-device support, native encryption,
+	# and compression. Additional devices can be added to the bcachefs filesystem.
+	# Only the first disk will have boot and swap partitions.
+	#
+	# NOTE: bcachefs requires building the kernel from source (KERNEL_TYPE=source)
+	# as it is no longer included in the mainline kernel tree since 6.18+.
+	#
+	# Parameters:
+	#   swap=<size>                         Create a swap partition with given size, or no swap
+	#                                       at all if set to false.
+	#   type=[efi|bios]                     Selects the boot type. Defaults to efi if not given.
+	#   encrypt=[true|false]                Use bcachefs native encryption. Defaults to false.
+	#                                       Cannot be combined with luks=true.
+	#   luks=[true|false]                   Use LUKS encryption. Defaults to false if not given.
+	#                                       Cannot be combined with encrypt=true.
+	#   compress=[false|<compression>]      Compress the bcachefs filesystem (zstd, lz4, gzip).
+	#                                       Defaults to false if not given.
+	#create_bcachefs_centric_layout swap=8GiB type=efi encrypt=true compress=zstd /dev/sdX
+	#create_bcachefs_centric_layout swap=8GiB type=efi luks=true compress=false /dev/sd{X,Y}
 }
 
 
 ################################################
-# LUKS/ZFS encryption configuration
+# LUKS/ZFS/bcachefs encryption configuration
 
 # If you have selected a disk layout that uses encryption with LUKS or ZFS,
 # you need to define an encryption key. If you have not used an encrypted
@@ -188,7 +211,7 @@ function disk_configuration() {
 HOSTNAME="gentoo"
 
 # The timezone for the new system
-TIMEZONE="Europe/London"
+TIMEZONE="Europe/Paris"
 #TIMEZONE="Europe/Berlin"
 
 # The default keymap for the system
@@ -302,9 +325,10 @@ ENABLE_SSHD=true
 ENABLE_BINPKG=false
 
 # Kernel type to install:
-#   "bin"    - Install pre-built binary kernel (sys-kernel/gentoo-kernel-bin) [default]
-#   "source" - Build kernel from source (sys-kernel/gentoo-kernel)
-KERNEL_TYPE=bin
+#   "source" - Build kernel from source (sys-kernel/gentoo-kernel) [default]
+#   "bin"    - Install pre-built binary kernel (sys-kernel/gentoo-kernel-bin)
+# NOTE: bcachefs requires "source" as it is no longer in the mainline kernel since 6.18+.
+KERNEL_TYPE=source
 
 # An ssh key to add to the authorized_keys file for the root user.
 # This variable will become the content of the authorized_keys file,

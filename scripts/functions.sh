@@ -89,6 +89,8 @@ function prepare_installation_environment() {
 
 	[[ $USED_BTRFS == "true" ]] \
 		&& wanted_programs+=(btrfs)
+	[[ $USED_BCACHEFS == "true" ]] \
+		&& wanted_programs+=(bcachefs)
 	[[ $USED_ZFS == "true" ]] \
 		&& wanted_programs+=(zfs)
 	[[ $USED_RAID == "true" ]] \
@@ -452,6 +454,14 @@ function disk_format() {
 
 			init_btrfs "$device" "'$device' ($id)"
 			;;
+		'bcachefs')
+			local bcachefs_args=()
+			if [[ -v "arguments[label]" ]]; then
+				bcachefs_args+=("-L" "$label")
+			fi
+			bcachefs format "${bcachefs_args[@]}" "$device" \
+				|| die "Could not format device '$device' ($id)"
+			;;
 		*) die "Unknown filesystem type" ;;
 	esac
 }
@@ -509,6 +519,49 @@ function format_zfs_standard() {
 		|| die "Could not create zfs dataset 'rpool/ROOT/default'"
 	zpool set bootfs=rpool/ROOT/default rpool \
 		|| die "Could not set zfs property bootfs on rpool"
+}
+
+# This function creates a bcachefs filesystem, optionally with native encryption and compression.
+# $1: either 'true' or 'false' determining if the filesystem should be encrypted
+# $2: either 'false' or a value determining the compression algorithm
+# $3: a string describing all device paths (for error messages)
+# $@: device paths
+function format_bcachefs_standard() {
+	local encrypt="$1"
+	local compress="$2"
+	local device_desc="$3"
+	shift 3
+	local devices=("$@")
+	local extra_args=()
+
+	einfo "Creating bcachefs filesystem on $device_desc"
+
+	if [[ "$encrypt" == true ]]; then
+		extra_args+=("--encrypted")
+	fi
+
+	if [[ "$compress" != false ]]; then
+		extra_args+=("--compression=$compress")
+	fi
+
+	if [[ "$encrypt" == true ]]; then
+		echo -n "$GENTOO_INSTALL_ENCRYPTION_KEY" \
+			| bcachefs format "${extra_args[@]}" "${devices[@]}" \
+			|| die "Could not create bcachefs filesystem on $device_desc"
+	else
+		bcachefs format "${extra_args[@]}" "${devices[@]}" \
+			|| die "Could not create bcachefs filesystem on $device_desc"
+	fi
+
+	# Mount the bcachefs filesystem
+	local mount_dev
+	mount_dev="$(IFS=:; echo "${devices[*]}")"
+	if [[ "$encrypt" == true ]]; then
+		echo -n "$GENTOO_INSTALL_ENCRYPTION_KEY" \
+			| bcachefs unlock "${devices[0]}"
+	fi
+	mount -t bcachefs "$mount_dev" "$ROOT_MOUNTPOINT" \
+		|| die "Could not mount bcachefs filesystem on $device_desc"
 }
 
 function disk_format_zfs() {
@@ -598,6 +651,40 @@ function disk_format_btrfs() {
 	init_btrfs "${devices[0]}" "btrfs array ($devices_desc)"
 }
 
+function disk_format_bcachefs() {
+	local ids="${arguments[ids]}"
+	local encrypt="${arguments[encrypt]-false}"
+	local compress="${arguments[compress]-false}"
+	if [[ ${disk_action_summarize_only-false} == "true" ]]; then
+		local id
+		# Splitting is intentional here
+		# shellcheck disable=SC2086
+		for id in ${ids//';'/ }; do
+			add_summary_entry "$id" "__fs__$id" "bcachefs" "(fs)" "$(summary_color_args label)"
+		done
+		return 0
+	fi
+
+	local devices_desc=""
+	local devices=()
+	local id
+	local dev
+	# Splitting is intentional here
+	# shellcheck disable=SC2086
+	for id in ${ids//';'/ }; do
+		dev="$(resolve_device_by_id "$id")" \
+			|| die "Could not resolve device with id=$id"
+		devices+=("$dev")
+		devices_desc+="$dev ($id), "
+	done
+	devices_desc="${devices_desc:0:-2}"
+
+	wipefs --quiet --all --force "${devices[@]}" \
+		|| die "Could not erase previous file system signatures from $devices_desc"
+
+	format_bcachefs_standard "$encrypt" "$compress" "$devices_desc" "${devices[@]}"
+}
+
 function apply_disk_action() {
 	unset known_arguments
 	unset arguments; declare -A arguments; parse_arguments "$@"
@@ -611,6 +698,7 @@ function apply_disk_action() {
 		'format')            disk_format           ;;
 		'format_zfs')        disk_format_zfs       ;;
 		'format_btrfs')      disk_format_btrfs     ;;
+		'format_bcachefs')   disk_format_bcachefs  ;;
 		*) echo "Ignoring invalid action: ${arguments[action]}" ;;
 	esac
 }
@@ -798,6 +886,24 @@ function mount_by_id() {
 function mount_root() {
 	if [[ $USED_ZFS == "true" ]] && ! mountpoint -q -- "$ROOT_MOUNTPOINT"; then
 		die "Error: Expected zfs to be mounted under '$ROOT_MOUNTPOINT', but it isn't."
+	elif [[ $USED_BCACHEFS == "true" ]] && [[ -v "BCACHEFS_DEVICE_IDS" ]]; then
+		# bcachefs multi-device was already mounted during format_bcachefs_standard
+		if ! mountpoint -q -- "$ROOT_MOUNTPOINT"; then
+			# Mount manually if not already mounted (e.g. single device or remount)
+			local bcachefs_devs=()
+			local id dev
+			# Splitting is intentional here
+			# shellcheck disable=SC2086
+			for id in ${BCACHEFS_DEVICE_IDS//';'/ }; do
+				dev="$(resolve_device_by_id "$id")" \
+					|| die "Could not resolve device with id=$id"
+				bcachefs_devs+=("$dev")
+			done
+			local mount_dev
+			mount_dev="$(IFS=:; echo "${bcachefs_devs[*]}")"
+			mount -t bcachefs "$mount_dev" "$ROOT_MOUNTPOINT" \
+				|| die "Could not mount bcachefs filesystem"
+		fi
 	else
 		mount_by_id "$DISK_ID_ROOT" "$ROOT_MOUNTPOINT"
 	fi

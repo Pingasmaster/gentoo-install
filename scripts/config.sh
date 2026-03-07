@@ -25,6 +25,8 @@ USED_LUKS=false
 USED_ZFS=false
 # Flag to track usage of btrfs
 USED_BTRFS=false
+# Flag to track usage of bcachefs
+USED_BCACHEFS=false
 # Flag to track usage of encryption
 USED_ENCRYPTION=false
 # Flag to track whether partitioning or formatting is forbidden
@@ -240,11 +242,13 @@ function format() {
 	declare -A arguments; parse_arguments "$@"
 
 	verify_existing_id id
-	verify_option type bios efi swap ext4 btrfs
+	verify_option type bios efi swap ext4 btrfs bcachefs
 
 	local type="${arguments[type]}"
 	if [[ "$type" == "btrfs" ]]; then
 		USED_BTRFS=true
+	elif [[ "$type" == "bcachefs" ]]; then
+		USED_BCACHEFS=true
 	fi
 
 	DISK_ACTIONS+=("action=format" "$@" ";")
@@ -280,6 +284,23 @@ function format_btrfs() {
 	verify_existing_unique_ids ids
 
 	DISK_ACTIONS+=("action=format_btrfs" "$@" ";")
+}
+
+# Named arguments:
+# ids:       List of ids for devices / partitions created earlier. Must contain at least 1 element.
+# encrypt:   Whether or not to encrypt using bcachefs native encryption
+# compress:  Compression algorithm (false, zstd, lz4, gzip)
+function format_bcachefs() {
+	USED_BCACHEFS=true
+
+	local known_arguments=('+ids' '?encrypt' '?compress')
+	local extra_arguments=()
+	declare -A arguments; parse_arguments "$@"
+
+	verify_existing_unique_ids ids
+
+	USED_ENCRYPTION=${arguments[encrypt]:-false}
+	DISK_ACTIONS+=("action=format_bcachefs" "$@" ";")
 }
 
 # Returns a comma separated list of all registered ids matching the given regex.
@@ -342,6 +363,9 @@ function create_classic_single_disk_layout() {
 	elif [[ $root_fs == "ext4" ]]; then
 		DISK_ID_ROOT_TYPE="ext4"
 		DISK_ID_ROOT_MOUNT_OPTS="defaults,noatime,errors=remount-ro,discard"
+	elif [[ $root_fs == "bcachefs" ]]; then
+		DISK_ID_ROOT_TYPE="bcachefs"
+		DISK_ID_ROOT_MOUNT_OPTS="defaults,noatime"
 	else
 		die "Unsupported root filesystem type"
 	fi
@@ -499,6 +523,9 @@ function create_raid0_luks_layout() {
 	elif [[ $root_fs == "ext4" ]]; then
 		DISK_ID_ROOT_TYPE="ext4"
 		DISK_ID_ROOT_MOUNT_OPTS="defaults,noatime,errors=remount-ro,discard"
+	elif [[ $root_fs == "bcachefs" ]]; then
+		DISK_ID_ROOT_TYPE="bcachefs"
+		DISK_ID_ROOT_MOUNT_OPTS="defaults,noatime"
 	else
 		die "Unsupported root filesystem type"
 	fi
@@ -564,6 +591,9 @@ function create_raid1_luks_layout() {
 	elif [[ $root_fs == "ext4" ]]; then
 		DISK_ID_ROOT_TYPE="ext4"
 		DISK_ID_ROOT_MOUNT_OPTS="defaults,noatime,errors=remount-ro,discard"
+	elif [[ $root_fs == "bcachefs" ]]; then
+		DISK_ID_ROOT_TYPE="bcachefs"
+		DISK_ID_ROOT_MOUNT_OPTS="defaults,noatime"
 	else
 		die "Unsupported root filesystem type"
 	fi
@@ -638,4 +668,79 @@ function create_btrfs_centric_layout() {
 
 function create_btrfs_raid_layout() {
 	die "'create_btrfs_raid_layout' is deprecated, please use 'create_btrfs_centric_layout' instead. It is fully option-compatible to the old version."
+}
+
+# Multiple disks, up to 3 partitions on first disk (efi, optional swap, root with bcachefs).
+# Additional devices will be added to the bcachefs multi-device filesystem.
+# Parameters:
+#   swap=<size>                         Create a swap partition with given size, or no swap at all if set to false.
+#   type=[efi|bios]                     Selects the boot type. Defaults to efi if not given.
+#   encrypt=[true|false]                Encrypt using bcachefs native encryption. Defaults to false if not given.
+#   luks=[true|false]                   Encrypt using LUKS. Defaults to false if not given.
+#   compress=[false|<compression>]      Compress the bcachefs filesystem (zstd, lz4, gzip). Defaults to false if not given.
+function create_bcachefs_centric_layout() {
+	local known_arguments=('+swap' '?type' '?encrypt' '?luks' '?compress')
+	local extra_arguments=()
+	declare -A arguments; parse_arguments "$@"
+
+	[[ ${#extra_arguments[@]} -gt 0 ]] \
+		|| die_trace 1 "Expected at least one positional argument (the devices)"
+	local device="${extra_arguments[0]}"
+	local size_swap="${arguments[swap]}"
+	local type="${arguments[type]:-efi}"
+	local encrypt="${arguments[encrypt]:-false}"
+	local use_luks="${arguments[luks]:-false}"
+	local compress="${arguments[compress]:-false}"
+
+	# Cannot use both LUKS and native encryption simultaneously
+	[[ "$encrypt" == "true" && "$use_luks" == "true" ]] \
+		&& die "Cannot use both LUKS and bcachefs native encryption simultaneously"
+
+	# Create layout on first disk
+	create_gpt new_id="gpt_dev0" device="${extra_arguments[0]}"
+	create_partition new_id="part_${type}_dev0" id="gpt_dev0" size=1GiB       type="$type"
+	[[ $size_swap != "false" ]] \
+		&& create_partition new_id="part_swap_dev0"    id="gpt_dev0" size="$size_swap" type=swap
+	create_partition new_id="part_root_dev0"    id="gpt_dev0" size=remaining    type=linux
+
+	local root_id
+	local root_ids=""
+	if [[ "$use_luks" == "true" ]]; then
+		create_luks new_id=luks_dev0 name="luks_root_0" id=part_root_dev0
+		root_id="luks_dev0"
+		root_ids="${root_ids}luks_dev0;"
+		for i in "${!extra_arguments[@]}"; do
+			[[ $i != 0 ]] || continue
+			create_luks new_id="luks_dev$i" name="luks_root_$i" device="${extra_arguments[$i]}"
+			root_ids="${root_ids}luks_dev$i;"
+		done
+	else
+		local dev_id=""
+		root_id="part_root_dev0"
+		root_ids="${root_ids}part_root_dev0;"
+		for i in "${!extra_arguments[@]}"; do
+			[[ $i != 0 ]] || continue
+			dev_id="root_dev$i"
+			create_dummy new_id="$dev_id" device="${extra_arguments[$i]}"
+			root_ids="${root_ids}$dev_id;"
+		done
+	fi
+
+	format id="part_${type}_dev0" type="$type" label="$type"
+	[[ $size_swap != "false" ]] \
+		&& format id="part_swap_dev0" type=swap label=swap
+	format_bcachefs ids="$root_ids" encrypt="$encrypt" compress="$compress"
+
+	if [[ $type == "efi" ]]; then
+		DISK_ID_EFI="part_${type}_dev0"
+	else
+		DISK_ID_BIOS="part_${type}_dev0"
+	fi
+	[[ $size_swap != "false" ]] \
+		&& DISK_ID_SWAP=part_swap_dev0
+	DISK_ID_ROOT="$root_id"
+	DISK_ID_ROOT_TYPE="bcachefs"
+	DISK_ID_ROOT_MOUNT_OPTS="defaults,noatime"
+	# Store all bcachefs member device ids for multi-device mount
+	BCACHEFS_DEVICE_IDS="$root_ids"
 }
