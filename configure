@@ -440,7 +440,7 @@ function load_default_config() {
 	ENABLE_SSHD=true
 	ENABLE_BINPKG=false
 	KERNEL_TYPE=bin
-	ROOT_SSH_AUTHORIZED_KEYS=""
+	ROOT_SSH_AUTHORIZED_KEYS="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID30WroYpFd5irJGCrqQ4sADugeMmUxqNEIFuuvTDULD user@pc"
 
 	# All settings are unsaved.
 	UNSAVED_CHANGES=true

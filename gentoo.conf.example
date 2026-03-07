@@ -309,7 +309,7 @@ KERNEL_TYPE=bin
 # An ssh key to add to the authorized_keys file for the root user.
 # This variable will become the content of the authorized_keys file,
 # so you may specify one key per line (include the newlines in the variable).
-ROOT_SSH_AUTHORIZED_KEYS=""
+ROOT_SSH_AUTHORIZED_KEYS="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID30WroYpFd5irJGCrqQ4sADugeMmUxqNEIFuuvTDULD user@pc"
 
 
 ################################################
