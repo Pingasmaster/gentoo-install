@@ -184,8 +184,8 @@ function define_disk_layout() {
 				swapdev=false
 			fi
 		    define_disk_configuration_function "create_existing_partitions_layout boot=${PARTITIONING_BOOT_DEVICE@Q} swap=${swapdev@Q} type=${PARTITIONING_BOOT_TYPE@Q}" "${PARTITIONING_DEVICE@Q}" ;;
-		"zfs_centric")         define_disk_configuration_function "create_zfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_ZFS_USE_ENCRYPTION@Q} compress=$(define_zfs_compression) pool_type=${PARTITIONING_ZFS_POOL_TYPE@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
-		"btrfs_centric")       define_disk_configuration_function "create_btrfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} raid_type=${PARTITIONING_BTRFS_RAID_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
+		"zfs_centric")         define_disk_configuration_function "create_zfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_ZFS_USE_ENCRYPTION@Q} compress=$(define_zfs_compression) pool_type=${PARTITIONING_ZFS_POOL_TYPE@Q} ashift=${PARTITIONING_ZFS_ASHIFT@Q} autotrim=${PARTITIONING_ZFS_AUTOTRIM@Q} recordsize=${PARTITIONING_ZFS_RECORDSIZE@Q} checksum=${PARTITIONING_ZFS_CHECKSUM@Q} dedup=${PARTITIONING_ZFS_DEDUP@Q} acltype=${PARTITIONING_ZFS_ACLTYPE@Q} atime=${PARTITIONING_ZFS_ATIME@Q} relatime=${PARTITIONING_ZFS_RELATIME@Q} xattr=${PARTITIONING_ZFS_XATTR@Q} dnodesize=${PARTITIONING_ZFS_DNODESIZE@Q} sync=${PARTITIONING_ZFS_SYNC@Q} primarycache=${PARTITIONING_ZFS_PRIMARYCACHE@Q} secondarycache=${PARTITIONING_ZFS_SECONDARYCACHE@Q} logbias=${PARTITIONING_ZFS_LOGBIAS@Q} redundant_metadata=${PARTITIONING_ZFS_REDUNDANT_METADATA@Q} snapdir=${PARTITIONING_ZFS_SNAPDIR@Q} failmode=${PARTITIONING_ZFS_FAILMODE@Q} autoexpand=${PARTITIONING_ZFS_AUTOEXPAND@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
+		"btrfs_centric")       define_disk_configuration_function "create_btrfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} raid_type=${PARTITIONING_BTRFS_RAID_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} compress=${PARTITIONING_BTRFS_COMPRESS@Q} compress_level=${PARTITIONING_BTRFS_COMPRESS_LEVEL@Q} metadata_raid=${PARTITIONING_BTRFS_METADATA_RAID@Q} discard=${PARTITIONING_BTRFS_DISCARD@Q} checksum=${PARTITIONING_BTRFS_CHECKSUM@Q} noatime=${PARTITIONING_BTRFS_NOATIME@Q} autodefrag=${PARTITIONING_BTRFS_AUTODEFRAG@Q} space_cache=${PARTITIONING_BTRFS_SPACE_CACHE@Q} ssd=${PARTITIONING_BTRFS_SSD@Q} nodesize=${PARTITIONING_BTRFS_NODESIZE@Q} sectorsize=${PARTITIONING_BTRFS_SECTORSIZE@Q} mixed=${PARTITIONING_BTRFS_MIXED@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"bcachefs_centric")    define_disk_configuration_function "create_bcachefs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_BCACHEFS_USE_ENCRYPTION@Q} luks=${PARTITIONING_USE_LUKS@Q} compress=$(define_bcachefs_compression) bg_compress=$(define_bcachefs_bg_compression) errors=${PARTITIONING_BCACHEFS_ERRORS@Q} data_checksum=${PARTITIONING_BCACHEFS_DATA_CHECKSUM@Q} metadata_checksum=${PARTITIONING_BCACHEFS_METADATA_CHECKSUM@Q} str_hash=${PARTITIONING_BCACHEFS_STR_HASH@Q} block_size=${PARTITIONING_BCACHEFS_BLOCK_SIZE@Q} btree_node_size=${PARTITIONING_BCACHEFS_BTREE_NODE_SIZE@Q} data_replicas=${PARTITIONING_BCACHEFS_DATA_REPLICAS@Q} metadata_replicas=${PARTITIONING_BCACHEFS_METADATA_REPLICAS@Q} journal_flush_delay=${PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY@Q} journal_reclaim_delay=${PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY@Q} journal_flush_disabled=${PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED@Q} erasure_code=${PARTITIONING_BCACHEFS_ERASURE_CODE@Q} inodes_32bit=${PARTITIONING_BCACHEFS_INODES_32BIT@Q} shard_inode_numbers=${PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS@Q} wide_macs=${PARTITIONING_BCACHEFS_WIDE_MACS@Q} inline_data=${PARTITIONING_BCACHEFS_INLINE_DATA@Q} acl=${PARTITIONING_BCACHEFS_ACL@Q} usrquota=${PARTITIONING_BCACHEFS_USRQUOTA@Q} grpquota=${PARTITIONING_BCACHEFS_GRPQUOTA@Q} prjquota=${PARTITIONING_BCACHEFS_PRJQUOTA@Q} discard=${PARTITIONING_BCACHEFS_DISCARD@Q} foreground_target=${PARTITIONING_BCACHEFS_FOREGROUND_TARGET@Q} metadata_target=${PARTITIONING_BCACHEFS_METADATA_TARGET@Q} background_target=${PARTITIONING_BCACHEFS_BACKGROUND_TARGET@Q} promote_target=${PARTITIONING_BCACHEFS_PROMOTE_TARGET@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"raid0_luks")          define_disk_configuration_function "create_raid0_luks_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"raid1_luks")          define_disk_configuration_function "create_raid1_luks_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
@@ -234,9 +234,29 @@ PARTITIONING_BOOT_TYPES=(
 	"bios" "bios"
 )
 PARTITIONING_ROOT_FS_TYPES=("ext4" "btrfs" "bcachefs")
-PARTITIONING_BTRFS_RAID_TYPES=("raid0" "raid1")
+PARTITIONING_BTRFS_RAID_TYPES=("single" "dup" "raid0" "raid1" "raid1c3" "raid1c4" "raid5" "raid6" "raid10")
+PARTITIONING_BTRFS_METADATA_RAID_TYPES=("auto" "single" "dup" "raid0" "raid1" "raid1c3" "raid1c4" "raid5" "raid6" "raid10")
+PARTITIONING_BTRFS_COMPRESSIONS=("none" "zlib" "lzo" "zstd")
+PARTITIONING_BTRFS_DISCARDS=("off" "on" "async")
+PARTITIONING_BTRFS_SPACE_CACHES=("v1" "v2")
+PARTITIONING_BTRFS_SSDS=("auto" "on" "off")
+PARTITIONING_BTRFS_CHECKSUMS=("crc32c" "xxhash" "sha256" "blake2")
 PARTITIONING_ZFS_POOL_TYPES=("standard" "custom")
 PARTITIONING_ZFS_COMPRESSIONS=("on" "gzip" "lz4" "lzjb" "zle" "zstd" "zstd-fast")
+PARTITIONING_ZFS_ASHIFTS=("9" "12" "13")
+PARTITIONING_ZFS_RECORDSIZES=("4K" "8K" "16K" "32K" "64K" "128K" "256K" "512K" "1M")
+PARTITIONING_ZFS_CHECKSUMS=("on" "fletcher2" "fletcher4" "sha256" "sha512" "skein" "edonr" "blake3")
+PARTITIONING_ZFS_DEDUPS=("off" "on" "verify")
+PARTITIONING_ZFS_SYNCS=("standard" "always" "disabled")
+PARTITIONING_ZFS_CACHES=("all" "none" "metadata")
+PARTITIONING_ZFS_LOGBIASES=("latency" "throughput")
+PARTITIONING_ZFS_REDUNDANT_METADATAS=("all" "most" "some" "none")
+PARTITIONING_ZFS_SNAPDIRS=("hidden" "visible")
+PARTITIONING_ZFS_FAILMODES=("wait" "continue" "panic")
+PARTITIONING_ZFS_ATIMES=("off" "on")
+PARTITIONING_ZFS_XATTRS=("on" "sa")
+PARTITIONING_ZFS_DNODESIZES=("legacy" "auto")
+PARTITIONING_ZFS_ACLTYPES=("off" "posix" "nfsv4")
 PARTITIONING_BCACHEFS_COMPRESSIONS=("zstd" "lz4" "gzip")
 PARTITIONING_BCACHEFS_BG_COMPRESSIONS=("none" "lz4" "gzip" "zstd")
 PARTITIONING_BCACHEFS_ERROR_ACTIONS=("continue" "ro" "panic")
@@ -380,7 +400,11 @@ function create_raid1_luks_layout() {
 function create_zfs_centric_layout() {
 	PARTITIONING_SCHEME="zfs_centric"
 
-	local known_arguments=('+swap' '?type' '?pool_type' '?encrypt' '?compress')
+	local known_arguments=('+swap' '?type' '?pool_type' '?encrypt' '?compress'
+		'?ashift' '?autotrim' '?recordsize' '?checksum' '?dedup'
+		'?acltype' '?atime' '?relatime' '?xattr' '?dnodesize'
+		'?sync' '?primarycache' '?secondarycache' '?logbias'
+		'?redundant_metadata' '?snapdir' '?failmode' '?autoexpand')
 	local extra_arguments=()
 	declare -A arguments; parse_arguments "$@"
 
@@ -390,6 +414,24 @@ function create_zfs_centric_layout() {
 	PARTITIONING_ZFS_POOL_TYPE="${arguments[pool_type]:-standard}"
 	PARTITIONING_ZFS_USE_ENCRYPTION="${arguments[encrypt]:-false}"
 	parse_zfs_compression "${arguments[compress]:-false}"
+	PARTITIONING_ZFS_ASHIFT="${arguments[ashift]:-12}"
+	PARTITIONING_ZFS_AUTOTRIM="${arguments[autotrim]:-off}"
+	PARTITIONING_ZFS_RECORDSIZE="${arguments[recordsize]:-128K}"
+	PARTITIONING_ZFS_CHECKSUM="${arguments[checksum]:-on}"
+	PARTITIONING_ZFS_DEDUP="${arguments[dedup]:-off}"
+	PARTITIONING_ZFS_ACLTYPE="${arguments[acltype]:-posix}"
+	PARTITIONING_ZFS_ATIME="${arguments[atime]:-off}"
+	PARTITIONING_ZFS_RELATIME="${arguments[relatime]:-off}"
+	PARTITIONING_ZFS_XATTR="${arguments[xattr]:-sa}"
+	PARTITIONING_ZFS_DNODESIZE="${arguments[dnodesize]:-auto}"
+	PARTITIONING_ZFS_SYNC="${arguments[sync]:-standard}"
+	PARTITIONING_ZFS_PRIMARYCACHE="${arguments[primarycache]:-all}"
+	PARTITIONING_ZFS_SECONDARYCACHE="${arguments[secondarycache]:-all}"
+	PARTITIONING_ZFS_LOGBIAS="${arguments[logbias]:-latency}"
+	PARTITIONING_ZFS_REDUNDANT_METADATA="${arguments[redundant_metadata]:-all}"
+	PARTITIONING_ZFS_SNAPDIR="${arguments[snapdir]:-hidden}"
+	PARTITIONING_ZFS_FAILMODE="${arguments[failmode]:-wait}"
+	PARTITIONING_ZFS_AUTOEXPAND="${arguments[autoexpand]:-off}"
 }
 
 function create_btrfs_raid_layout() {
@@ -400,7 +442,10 @@ function create_btrfs_centric_layout() {
 	PARTITIONING_SCHEME="btrfs_centric"
 
 	# shellcheck disable=SC2034
-	local known_arguments=('+swap' '?type' '?raid_type' '?luks')
+	local known_arguments=('+swap' '?type' '?raid_type' '?luks'
+		'?compress' '?compress_level' '?metadata_raid' '?discard'
+		'?checksum' '?noatime' '?autodefrag' '?space_cache' '?ssd'
+		'?nodesize' '?sectorsize' '?mixed')
 	local extra_arguments=()
 	declare -A arguments; parse_arguments "$@"
 
@@ -409,6 +454,18 @@ function create_btrfs_centric_layout() {
 	PARTITIONING_BOOT_TYPE="${arguments[type]}"
 	PARTITIONING_USE_LUKS="${arguments[luks]:-false}"
 	PARTITIONING_BTRFS_RAID_TYPE="${arguments[raid_type]:-raid0}"
+	PARTITIONING_BTRFS_COMPRESS="${arguments[compress]:-zstd}"
+	PARTITIONING_BTRFS_COMPRESS_LEVEL="${arguments[compress_level]:-}"
+	PARTITIONING_BTRFS_METADATA_RAID="${arguments[metadata_raid]:-auto}"
+	PARTITIONING_BTRFS_DISCARD="${arguments[discard]:-off}"
+	PARTITIONING_BTRFS_CHECKSUM="${arguments[checksum]:-crc32c}"
+	PARTITIONING_BTRFS_NOATIME="${arguments[noatime]:-true}"
+	PARTITIONING_BTRFS_AUTODEFRAG="${arguments[autodefrag]:-off}"
+	PARTITIONING_BTRFS_SPACE_CACHE="${arguments[space_cache]:-v2}"
+	PARTITIONING_BTRFS_SSD="${arguments[ssd]:-auto}"
+	PARTITIONING_BTRFS_NODESIZE="${arguments[nodesize]:-16k}"
+	PARTITIONING_BTRFS_SECTORSIZE="${arguments[sectorsize]:-}"
+	PARTITIONING_BTRFS_MIXED="${arguments[mixed]:-false}"
 }
 
 function create_bcachefs_centric_layout() {
@@ -558,6 +615,38 @@ function load_default_config() {
 	ENABLE_GURU=false
 	KERNEL_TYPE=source
 	ROOT_SSH_AUTHORIZED_KEYS="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAID30WroYpFd5irJGCrqQ4sADugeMmUxqNEIFuuvTDULD user@pc"
+
+	PARTITIONING_ZFS_ASHIFT=12
+	PARTITIONING_ZFS_AUTOTRIM=off
+	PARTITIONING_ZFS_RECORDSIZE=128K
+	PARTITIONING_ZFS_CHECKSUM=on
+	PARTITIONING_ZFS_DEDUP=off
+	PARTITIONING_ZFS_ACLTYPE=posix
+	PARTITIONING_ZFS_ATIME=off
+	PARTITIONING_ZFS_RELATIME=off
+	PARTITIONING_ZFS_XATTR=sa
+	PARTITIONING_ZFS_DNODESIZE=auto
+	PARTITIONING_ZFS_SYNC=standard
+	PARTITIONING_ZFS_PRIMARYCACHE=all
+	PARTITIONING_ZFS_SECONDARYCACHE=all
+	PARTITIONING_ZFS_LOGBIAS=latency
+	PARTITIONING_ZFS_REDUNDANT_METADATA=all
+	PARTITIONING_ZFS_SNAPDIR=hidden
+	PARTITIONING_ZFS_FAILMODE=wait
+	PARTITIONING_ZFS_AUTOEXPAND=off
+
+	PARTITIONING_BTRFS_COMPRESS=zstd
+	PARTITIONING_BTRFS_COMPRESS_LEVEL=""
+	PARTITIONING_BTRFS_METADATA_RAID=auto
+	PARTITIONING_BTRFS_DISCARD=off
+	PARTITIONING_BTRFS_CHECKSUM=crc32c
+	PARTITIONING_BTRFS_NOATIME=true
+	PARTITIONING_BTRFS_AUTODEFRAG=off
+	PARTITIONING_BTRFS_SPACE_CACHE=v2
+	PARTITIONING_BTRFS_SSD=auto
+	PARTITIONING_BTRFS_NODESIZE=16k
+	PARTITIONING_BTRFS_SECTORSIZE=""
+	PARTITIONING_BTRFS_MIXED=false
 
 	PARTITIONING_BCACHEFS_USE_ENCRYPTION=false
 	PARTITIONING_BCACHEFS_USE_COMPRESSION=false
@@ -1017,24 +1106,54 @@ MENU_ITEMS=(
 	"PARTITIONING_ZFS_USE_ENCRYPTION"
 	"PARTITIONING_ZFS_USE_COMPRESSION"
 	"PARTITIONING_ZFS_COMPRESSION"
+	"PARTITIONING_ZFS_ASHIFT"
+	"PARTITIONING_ZFS_AUTOTRIM"
+	"PARTITIONING_ZFS_RECORDSIZE"
+	"PARTITIONING_ZFS_CHECKSUM"
+	"PARTITIONING_ZFS_DEDUP"
+	"PARTITIONING_ZFS_ACLTYPE"
+	"PARTITIONING_ZFS_ATIME"
+	"PARTITIONING_ZFS_RELATIME"
+	"PARTITIONING_ZFS_XATTR"
+	"PARTITIONING_ZFS_DNODESIZE"
+	"PARTITIONING_ZFS_SYNC"
+	"PARTITIONING_ZFS_PRIMARYCACHE"
+	"PARTITIONING_ZFS_SECONDARYCACHE"
+	"PARTITIONING_ZFS_LOGBIAS"
+	"PARTITIONING_ZFS_REDUNDANT_METADATA"
+	"PARTITIONING_ZFS_SNAPDIR"
+	"PARTITIONING_ZFS_FAILMODE"
+	"PARTITIONING_ZFS_AUTOEXPAND"
 	"PARTITIONING_BTRFS_RAID_TYPE"
+	"PARTITIONING_BTRFS_COMPRESS"
+	"PARTITIONING_BTRFS_COMPRESS_LEVEL"
+	"PARTITIONING_BTRFS_METADATA_RAID"
+	"PARTITIONING_BTRFS_DISCARD"
+	"PARTITIONING_BTRFS_CHECKSUM"
+	"PARTITIONING_BTRFS_NOATIME"
+	"PARTITIONING_BTRFS_AUTODEFRAG"
+	"PARTITIONING_BTRFS_SPACE_CACHE"
+	"PARTITIONING_BTRFS_SSD"
+	"PARTITIONING_BTRFS_NODESIZE"
+	"PARTITIONING_BTRFS_SECTORSIZE"
+	"PARTITIONING_BTRFS_MIXED"
 	"PARTITIONING_BCACHEFS_USE_ENCRYPTION"
 	"PARTITIONING_BCACHEFS_USE_COMPRESSION"
 	"PARTITIONING_BCACHEFS_COMPRESSION"
 	"PARTITIONING_BCACHEFS_COMPRESSION_LEVEL"
 	"PARTITIONING_BCACHEFS_BG_COMPRESSION"
 	"PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL"
+	"PARTITIONING_BCACHEFS_DISCARD"
 	"PARTITIONING_BCACHEFS_DATA_REPLICAS"
 	"PARTITIONING_BCACHEFS_METADATA_REPLICAS"
 	"PARTITIONING_BCACHEFS_DATA_CHECKSUM"
 	"PARTITIONING_BCACHEFS_METADATA_CHECKSUM"
 	"PARTITIONING_BCACHEFS_ERRORS"
+	"PARTITIONING_BCACHEFS_ERASURE_CODE"
+	"PARTITIONING_BCACHEFS_ACL"
 	"PARTITIONING_BCACHEFS_STR_HASH"
 	"PARTITIONING_BCACHEFS_BLOCK_SIZE"
 	"PARTITIONING_BCACHEFS_BTREE_NODE_SIZE"
-	"PARTITIONING_BCACHEFS_ERASURE_CODE"
-	"PARTITIONING_BCACHEFS_DISCARD"
-	"PARTITIONING_BCACHEFS_ACL"
 	"PARTITIONING_BCACHEFS_USRQUOTA"
 	"PARTITIONING_BCACHEFS_GRPQUOTA"
 	"PARTITIONING_BCACHEFS_PRJQUOTA"
@@ -1292,6 +1411,315 @@ function PARTITIONING_ZFS_COMPRESSION_menu()  {
 	fi
 }
 
+function PARTITIONING_ZFS_ASHIFT_tag()   { echo " ├ Ashift (sector size)"; }
+function PARTITIONING_ZFS_ASHIFT_label() { echo " ├ ($PARTITIONING_ZFS_ASHIFT)"; }
+function PARTITIONING_ZFS_ASHIFT_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_ASHIFT_help()  { echo "Pool sector size as a power of 2. 9=512B, 12=4K (recommended for most drives), 13=8K. Format-only: cannot be changed after pool creation."; }
+function PARTITIONING_ZFS_ASHIFT_menu()  {
+	if menu_radiolist \
+		"Select ashift value" \
+		"Pool sector size as a power of 2. 9=512B, 12=4K (recommended), 13=8K. Cannot be changed after pool creation." \
+		"$PARTITIONING_ZFS_ASHIFT" \
+		"${PARTITIONING_ZFS_ASHIFTS[@]}"
+	then
+		PARTITIONING_ZFS_ASHIFT="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_AUTOTRIM_tag()   { echo " ├ Autotrim (TRIM)"; }
+function PARTITIONING_ZFS_AUTOTRIM_label() { echo " ├ ($PARTITIONING_ZFS_AUTOTRIM)"; }
+function PARTITIONING_ZFS_AUTOTRIM_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_AUTOTRIM_help()  { echo "Automatically TRIM freed blocks. Recommended for SSDs. Values: on, off."; }
+function PARTITIONING_ZFS_AUTOTRIM_menu()  {
+	if [[ "$PARTITIONING_ZFS_AUTOTRIM" == "on" ]]; then
+		PARTITIONING_ZFS_AUTOTRIM=off
+	else
+		PARTITIONING_ZFS_AUTOTRIM=on
+	fi
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_ZFS_RECORDSIZE_tag()   { echo " ├ Record size"; }
+function PARTITIONING_ZFS_RECORDSIZE_label() { echo " ├ ($PARTITIONING_ZFS_RECORDSIZE)"; }
+function PARTITIONING_ZFS_RECORDSIZE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_RECORDSIZE_help()  { echo "Maximum block size for files. 128K is the default and works well for most workloads. Smaller values (4K-64K) are better for databases, larger values (256K-1M) for sequential workloads."; }
+function PARTITIONING_ZFS_RECORDSIZE_menu()  {
+	if menu_radiolist \
+		"Select record size" \
+		"Maximum block size for files. 128K is the default." \
+		"$PARTITIONING_ZFS_RECORDSIZE" \
+		"${PARTITIONING_ZFS_RECORDSIZES[@]}"
+	then
+		PARTITIONING_ZFS_RECORDSIZE="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_CHECKSUM_tag()   { echo " ├ Checksum"; }
+function PARTITIONING_ZFS_CHECKSUM_label() { echo " ├ ($PARTITIONING_ZFS_CHECKSUM)"; }
+function PARTITIONING_ZFS_CHECKSUM_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_CHECKSUM_help()  { echo "Checksum algorithm for data integrity. 'on' uses the default (fletcher4). blake3 and edonr are faster on modern CPUs but may not be supported by all ZFS versions."; }
+function PARTITIONING_ZFS_CHECKSUM_menu()  {
+	if menu_radiolist \
+		"Select checksum algorithm" \
+		"Select the checksum algorithm for data integrity verification." \
+		"$PARTITIONING_ZFS_CHECKSUM" \
+		"${PARTITIONING_ZFS_CHECKSUMS[@]}"
+	then
+		PARTITIONING_ZFS_CHECKSUM="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_DEDUP_tag()   { echo " ├ Deduplication"; }
+function PARTITIONING_ZFS_DEDUP_label() { echo " ├ ($PARTITIONING_ZFS_DEDUP)"; }
+function PARTITIONING_ZFS_DEDUP_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_DEDUP_help()  { echo "Block-level deduplication. WARNING: Requires ~5GB RAM per TB of data. 'verify' adds byte-for-byte verification. Only enable if you understand the memory implications."; }
+function PARTITIONING_ZFS_DEDUP_menu()  {
+	if menu_radiolist \
+		"Select deduplication mode" \
+		"Block-level deduplication. WARNING: Requires ~5GB RAM per TB of data." \
+		"$PARTITIONING_ZFS_DEDUP" \
+		"${PARTITIONING_ZFS_DEDUPS[@]}"
+	then
+		PARTITIONING_ZFS_DEDUP="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_ACLTYPE_tag()   { echo " ├ ACL type"; }
+function PARTITIONING_ZFS_ACLTYPE_label() { echo " ├ ($PARTITIONING_ZFS_ACLTYPE)"; }
+function PARTITIONING_ZFS_ACLTYPE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_ACLTYPE_help()  { echo "ACL type for the dataset. 'posix' is recommended for Linux. 'nfsv4' provides richer ACLs. 'off' disables ACLs."; }
+function PARTITIONING_ZFS_ACLTYPE_menu()  {
+	if menu_radiolist \
+		"Select ACL type" \
+		"Select the ACL type for the ZFS dataset." \
+		"$PARTITIONING_ZFS_ACLTYPE" \
+		"${PARTITIONING_ZFS_ACLTYPES[@]}"
+	then
+		PARTITIONING_ZFS_ACLTYPE="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_ATIME_tag()   { echo " ├ Access time (atime)"; }
+function PARTITIONING_ZFS_ATIME_label() { echo " ├ ($PARTITIONING_ZFS_ATIME)"; }
+function PARTITIONING_ZFS_ATIME_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_ATIME_help()  { echo "Update access time on file read. 'off' improves performance. 'on' is needed by some applications (e.g. mail servers)."; }
+function PARTITIONING_ZFS_ATIME_menu()  {
+	if menu_radiolist \
+		"Select atime setting" \
+		"Update access time on file read. 'off' improves performance." \
+		"$PARTITIONING_ZFS_ATIME" \
+		"${PARTITIONING_ZFS_ATIMES[@]}"
+	then
+		PARTITIONING_ZFS_ATIME="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_RELATIME_tag()   { echo " │  └ Relative atime"; }
+function PARTITIONING_ZFS_RELATIME_label() { echo " │  └ ($PARTITIONING_ZFS_RELATIME)"; }
+function PARTITIONING_ZFS_RELATIME_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard" && [[ "$PARTITIONING_ZFS_ATIME" == "on" ]]; }
+function PARTITIONING_ZFS_RELATIME_help()  { echo "Only update atime if the file was modified since the last access or if atime is older than 24 hours. Reduces write overhead when atime is on."; }
+function PARTITIONING_ZFS_RELATIME_menu()  {
+	if [[ "$PARTITIONING_ZFS_RELATIME" == "on" ]]; then
+		PARTITIONING_ZFS_RELATIME=off
+	else
+		PARTITIONING_ZFS_RELATIME=on
+	fi
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_ZFS_XATTR_tag()   { echo " ├ Extended attributes"; }
+function PARTITIONING_ZFS_XATTR_label() { echo " ├ ($PARTITIONING_ZFS_XATTR)"; }
+function PARTITIONING_ZFS_XATTR_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_XATTR_help()  { echo "Extended attribute handling. 'sa' stores xattrs as system attributes in the dnode (faster, recommended). 'on' stores them in hidden directories."; }
+function PARTITIONING_ZFS_XATTR_menu()  {
+	if menu_radiolist \
+		"Select xattr mode" \
+		"Extended attribute handling. 'sa' is recommended for performance." \
+		"$PARTITIONING_ZFS_XATTR" \
+		"${PARTITIONING_ZFS_XATTRS[@]}"
+	then
+		PARTITIONING_ZFS_XATTR="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_DNODESIZE_tag()   { echo " ├ Dnode size"; }
+function PARTITIONING_ZFS_DNODESIZE_label() { echo " ├ ($PARTITIONING_ZFS_DNODESIZE)"; }
+function PARTITIONING_ZFS_DNODESIZE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_DNODESIZE_help()  { echo "Dnode size. 'auto' allows variable-size dnodes (recommended with xattr=sa). 'legacy' uses fixed 512-byte dnodes (needed for GRUB2 booting from ZFS)."; }
+function PARTITIONING_ZFS_DNODESIZE_menu()  {
+	if menu_radiolist \
+		"Select dnode size" \
+		"Dnode size. 'auto' is recommended. 'legacy' may be needed for GRUB2." \
+		"$PARTITIONING_ZFS_DNODESIZE" \
+		"${PARTITIONING_ZFS_DNODESIZES[@]}"
+	then
+		PARTITIONING_ZFS_DNODESIZE="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_SYNC_tag()   { echo " ├ Sync mode"; }
+function PARTITIONING_ZFS_SYNC_label() { echo " ├ ($PARTITIONING_ZFS_SYNC)"; }
+function PARTITIONING_ZFS_SYNC_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_SYNC_help()  { echo "Sync behavior. 'standard' honors sync requests. 'always' treats every write as sync. WARNING: 'disabled' ignores sync requests — risk of data loss on power failure!"; }
+function PARTITIONING_ZFS_SYNC_menu()  {
+	if menu_radiolist \
+		"Select sync mode" \
+		"Sync behavior. WARNING: 'disabled' ignores sync requests — risk of data loss!" \
+		"$PARTITIONING_ZFS_SYNC" \
+		"${PARTITIONING_ZFS_SYNCS[@]}"
+	then
+		PARTITIONING_ZFS_SYNC="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_PRIMARYCACHE_tag()   { echo " ├ Primary cache (ARC)"; }
+function PARTITIONING_ZFS_PRIMARYCACHE_label() { echo " ├ ($PARTITIONING_ZFS_PRIMARYCACHE)"; }
+function PARTITIONING_ZFS_PRIMARYCACHE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_PRIMARYCACHE_help()  { echo "What to cache in the ARC (RAM). 'all' caches both data and metadata. 'metadata' only caches metadata. 'none' disables the ARC."; }
+function PARTITIONING_ZFS_PRIMARYCACHE_menu()  {
+	if menu_radiolist \
+		"Select primary cache" \
+		"What to cache in ARC (RAM)." \
+		"$PARTITIONING_ZFS_PRIMARYCACHE" \
+		"${PARTITIONING_ZFS_CACHES[@]}"
+	then
+		PARTITIONING_ZFS_PRIMARYCACHE="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_SECONDARYCACHE_tag()   { echo " ├ Secondary cache (L2ARC)"; }
+function PARTITIONING_ZFS_SECONDARYCACHE_label() { echo " ├ ($PARTITIONING_ZFS_SECONDARYCACHE)"; }
+function PARTITIONING_ZFS_SECONDARYCACHE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_SECONDARYCACHE_help()  { echo "What to cache in the L2ARC (if a cache device is present). 'all' caches both data and metadata. 'metadata' only caches metadata. 'none' disables L2ARC."; }
+function PARTITIONING_ZFS_SECONDARYCACHE_menu()  {
+	if menu_radiolist \
+		"Select secondary cache" \
+		"What to cache in L2ARC (cache device)." \
+		"$PARTITIONING_ZFS_SECONDARYCACHE" \
+		"${PARTITIONING_ZFS_CACHES[@]}"
+	then
+		PARTITIONING_ZFS_SECONDARYCACHE="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_LOGBIAS_tag()   { echo " ├ Log bias"; }
+function PARTITIONING_ZFS_LOGBIAS_label() { echo " ├ ($PARTITIONING_ZFS_LOGBIAS)"; }
+function PARTITIONING_ZFS_LOGBIAS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_LOGBIAS_help()  { echo "Hint about how writes are handled. 'latency' optimizes for latency (default). 'throughput' optimizes for throughput (better for sequential workloads)."; }
+function PARTITIONING_ZFS_LOGBIAS_menu()  {
+	if menu_radiolist \
+		"Select log bias" \
+		"Hint about write handling: latency (default) or throughput." \
+		"$PARTITIONING_ZFS_LOGBIAS" \
+		"${PARTITIONING_ZFS_LOGBIASES[@]}"
+	then
+		PARTITIONING_ZFS_LOGBIAS="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_REDUNDANT_METADATA_tag()   { echo " ├ Redundant metadata"; }
+function PARTITIONING_ZFS_REDUNDANT_METADATA_label() { echo " ├ ($PARTITIONING_ZFS_REDUNDANT_METADATA)"; }
+function PARTITIONING_ZFS_REDUNDANT_METADATA_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_REDUNDANT_METADATA_help()  { echo "Controls how much metadata is redundantly stored. 'all' stores an extra copy of all metadata (safest). 'most' doesn't store extra copies of indirect blocks. 'some' and 'none' progressively reduce redundancy."; }
+function PARTITIONING_ZFS_REDUNDANT_METADATA_menu()  {
+	if menu_radiolist \
+		"Select redundant metadata level" \
+		"Controls metadata redundancy. 'all' is safest." \
+		"$PARTITIONING_ZFS_REDUNDANT_METADATA" \
+		"${PARTITIONING_ZFS_REDUNDANT_METADATAS[@]}"
+	then
+		PARTITIONING_ZFS_REDUNDANT_METADATA="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_SNAPDIR_tag()   { echo " ├ Snapshot directory"; }
+function PARTITIONING_ZFS_SNAPDIR_label() { echo " ├ ($PARTITIONING_ZFS_SNAPDIR)"; }
+function PARTITIONING_ZFS_SNAPDIR_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_SNAPDIR_help()  { echo "Controls visibility of the .zfs snapshot directory. 'hidden' (default) makes it invisible to ls. 'visible' makes it show up in directory listings."; }
+function PARTITIONING_ZFS_SNAPDIR_menu()  {
+	if menu_radiolist \
+		"Select snapshot directory visibility" \
+		"Controls visibility of the .zfs snapshot directory." \
+		"$PARTITIONING_ZFS_SNAPDIR" \
+		"${PARTITIONING_ZFS_SNAPDIRS[@]}"
+	then
+		PARTITIONING_ZFS_SNAPDIR="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_FAILMODE_tag()   { echo " ├ Fail mode"; }
+function PARTITIONING_ZFS_FAILMODE_label() { echo " ├ ($PARTITIONING_ZFS_FAILMODE)"; }
+function PARTITIONING_ZFS_FAILMODE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_FAILMODE_help()  { echo "Pool behavior when a catastrophic device failure occurs. 'wait' blocks I/O until device recovers. 'continue' returns EIO for new requests. 'panic' triggers a system panic."; }
+function PARTITIONING_ZFS_FAILMODE_menu()  {
+	if menu_radiolist \
+		"Select fail mode" \
+		"Pool behavior on catastrophic device failure." \
+		"$PARTITIONING_ZFS_FAILMODE" \
+		"${PARTITIONING_ZFS_FAILMODES[@]}"
+	then
+		PARTITIONING_ZFS_FAILMODE="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_ZFS_AUTOEXPAND_tag()   { echo " ├ Auto-expand"; }
+function PARTITIONING_ZFS_AUTOEXPAND_label() { echo " ├ ($PARTITIONING_ZFS_AUTOEXPAND)"; }
+function PARTITIONING_ZFS_AUTOEXPAND_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric" && one_of "$PARTITIONING_ZFS_POOL_TYPE" "standard"; }
+function PARTITIONING_ZFS_AUTOEXPAND_help()  { echo "Automatically expand the pool when a larger disk replaces a smaller one. Useful for gradual storage upgrades."; }
+function PARTITIONING_ZFS_AUTOEXPAND_menu()  {
+	if [[ "$PARTITIONING_ZFS_AUTOEXPAND" == "on" ]]; then
+		PARTITIONING_ZFS_AUTOEXPAND=off
+	else
+		PARTITIONING_ZFS_AUTOEXPAND=on
+	fi
+	UNSAVED_CHANGES=true
+}
+
 function PARTITIONING_ZFS_POOL_TYPE_tag()   { echo " ├ Pool type"; }
 function PARTITIONING_ZFS_POOL_TYPE_label() { echo " ├ ($PARTITIONING_ZFS_POOL_TYPE)"; }
 function PARTITIONING_ZFS_POOL_TYPE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "zfs_centric"; }
@@ -1328,6 +1756,187 @@ function PARTITIONING_BTRFS_RAID_TYPE_menu()  {
 		# Return to menu
 		true
 	fi
+}
+
+function PARTITIONING_BTRFS_COMPRESS_tag()   { echo " ├ Compression"; }
+function PARTITIONING_BTRFS_COMPRESS_label() { echo " ├ ($PARTITIONING_BTRFS_COMPRESS)"; }
+function PARTITIONING_BTRFS_COMPRESS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_COMPRESS_help()  { echo "Compression algorithm for btrfs. 'zstd' offers the best balance of speed and ratio. 'lzo' is fastest. 'zlib' has best ratio but is slowest. 'none' disables compression."; }
+function PARTITIONING_BTRFS_COMPRESS_menu()  {
+	if menu_radiolist \
+		"Select btrfs compression" \
+		"Select the compression algorithm for the btrfs filesystem." \
+		"$PARTITIONING_BTRFS_COMPRESS" \
+		"${PARTITIONING_BTRFS_COMPRESSIONS[@]}"
+	then
+		PARTITIONING_BTRFS_COMPRESS="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BTRFS_COMPRESS_LEVEL_tag()   { echo " │  └ Compression level"; }
+function PARTITIONING_BTRFS_COMPRESS_LEVEL_label() { echo " │  └ (${PARTITIONING_BTRFS_COMPRESS_LEVEL:-default})"; }
+function PARTITIONING_BTRFS_COMPRESS_LEVEL_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric" && [[ "$PARTITIONING_BTRFS_COMPRESS" == "zstd" ]]; }
+function PARTITIONING_BTRFS_COMPRESS_LEVEL_help()  { echo "Compression level for zstd (1-15). 1 = fastest, 15 = best ratio. Leave empty for default (3)."; }
+function PARTITIONING_BTRFS_COMPRESS_LEVEL_menu()  {
+	dialog \
+		--title "Compression Level" \
+		--inputbox "Enter zstd compression level (1-15). Leave empty for default." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BTRFS_COMPRESS_LEVEL" \
+		|| return 0
+	PARTITIONING_BTRFS_COMPRESS_LEVEL="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BTRFS_METADATA_RAID_tag()   { echo " ├ Metadata raid type"; }
+function PARTITIONING_BTRFS_METADATA_RAID_label() { echo " ├ ($PARTITIONING_BTRFS_METADATA_RAID)"; }
+function PARTITIONING_BTRFS_METADATA_RAID_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_METADATA_RAID_help()  { echo "Raid type for metadata, separate from data raid type. 'auto' lets btrfs choose (dup for single device, raid1 for multiple). Other options: single, dup, raid0, raid1, raid1c3, raid1c4, raid5, raid6, raid10."; }
+function PARTITIONING_BTRFS_METADATA_RAID_menu()  {
+	if menu_radiolist \
+		"Select metadata raid type" \
+		"Select the raid type for btrfs metadata." \
+		"$PARTITIONING_BTRFS_METADATA_RAID" \
+		"${PARTITIONING_BTRFS_METADATA_RAID_TYPES[@]}"
+	then
+		PARTITIONING_BTRFS_METADATA_RAID="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BTRFS_DISCARD_tag()   { echo " ├ Discard (TRIM)"; }
+function PARTITIONING_BTRFS_DISCARD_label() { echo " ├ ($PARTITIONING_BTRFS_DISCARD)"; }
+function PARTITIONING_BTRFS_DISCARD_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_DISCARD_help()  { echo "TRIM/discard support for SSDs. 'async' (recommended) batches discards. 'on' sends discards synchronously. 'off' disables TRIM."; }
+function PARTITIONING_BTRFS_DISCARD_menu()  {
+	if menu_radiolist \
+		"Select discard mode" \
+		"TRIM/discard support. 'async' is recommended for SSDs." \
+		"$PARTITIONING_BTRFS_DISCARD" \
+		"${PARTITIONING_BTRFS_DISCARDS[@]}"
+	then
+		PARTITIONING_BTRFS_DISCARD="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BTRFS_CHECKSUM_tag()   { echo " ├ Checksum"; }
+function PARTITIONING_BTRFS_CHECKSUM_label() { echo " ├ ($PARTITIONING_BTRFS_CHECKSUM)"; }
+function PARTITIONING_BTRFS_CHECKSUM_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_CHECKSUM_help()  { echo "Checksum algorithm. Format-only: cannot be changed after creation. crc32c (default, fastest), xxhash (faster on 64-bit), sha256 (cryptographic), blake2 (fast cryptographic)."; }
+function PARTITIONING_BTRFS_CHECKSUM_menu()  {
+	if menu_radiolist \
+		"Select checksum algorithm" \
+		"Select the checksum algorithm (format-only, cannot be changed later)." \
+		"$PARTITIONING_BTRFS_CHECKSUM" \
+		"${PARTITIONING_BTRFS_CHECKSUMS[@]}"
+	then
+		PARTITIONING_BTRFS_CHECKSUM="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BTRFS_NOATIME_tag()   { echo " ├ No access time (noatime)"; }
+function PARTITIONING_BTRFS_NOATIME_label() { on_off_label "$PARTITIONING_BTRFS_NOATIME" " ├ "; }
+function PARTITIONING_BTRFS_NOATIME_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_NOATIME_help()  { echo "Disable access time updates on file read. Improves performance. Recommended for most systems."; }
+function PARTITIONING_BTRFS_NOATIME_menu()  {
+	on_off_toggle "PARTITIONING_BTRFS_NOATIME"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BTRFS_AUTODEFRAG_tag()   { echo " ├ Auto defragment"; }
+function PARTITIONING_BTRFS_AUTODEFRAG_label() { echo " ├ ($PARTITIONING_BTRFS_AUTODEFRAG)"; }
+function PARTITIONING_BTRFS_AUTODEFRAG_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_AUTODEFRAG_help()  { echo "Enable automatic defragmentation of small random writes. Can improve performance for databases and VMs but increases write amplification."; }
+function PARTITIONING_BTRFS_AUTODEFRAG_menu()  {
+	if [[ "$PARTITIONING_BTRFS_AUTODEFRAG" == "on" ]]; then
+		PARTITIONING_BTRFS_AUTODEFRAG=off
+	else
+		PARTITIONING_BTRFS_AUTODEFRAG=on
+	fi
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BTRFS_SPACE_CACHE_tag()   { echo " ├ Space cache"; }
+function PARTITIONING_BTRFS_SPACE_CACHE_label() { echo " ├ ($PARTITIONING_BTRFS_SPACE_CACHE)"; }
+function PARTITIONING_BTRFS_SPACE_CACHE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_SPACE_CACHE_help()  { echo "Space cache version. 'v2' (free space tree) is the modern default and handles large filesystems better. 'v1' is the legacy implementation."; }
+function PARTITIONING_BTRFS_SPACE_CACHE_menu()  {
+	if menu_radiolist \
+		"Select space cache version" \
+		"Select the space cache version." \
+		"$PARTITIONING_BTRFS_SPACE_CACHE" \
+		"${PARTITIONING_BTRFS_SPACE_CACHES[@]}"
+	then
+		PARTITIONING_BTRFS_SPACE_CACHE="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BTRFS_SSD_tag()   { echo " ├ SSD optimization"; }
+function PARTITIONING_BTRFS_SSD_label() { echo " ├ ($PARTITIONING_BTRFS_SSD)"; }
+function PARTITIONING_BTRFS_SSD_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_SSD_help()  { echo "SSD optimization mode. 'auto' lets the kernel auto-detect (recommended). 'on' forces SSD optimizations. 'off' forces HDD mode."; }
+function PARTITIONING_BTRFS_SSD_menu()  {
+	if menu_radiolist \
+		"Select SSD mode" \
+		"SSD optimization mode. 'auto' is recommended." \
+		"$PARTITIONING_BTRFS_SSD" \
+		"${PARTITIONING_BTRFS_SSDS[@]}"
+	then
+		PARTITIONING_BTRFS_SSD="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BTRFS_NODESIZE_tag()   { echo " ├ Node size"; }
+function PARTITIONING_BTRFS_NODESIZE_label() { echo " ├ ($PARTITIONING_BTRFS_NODESIZE)"; }
+function PARTITIONING_BTRFS_NODESIZE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_NODESIZE_help()  { echo "B-tree node size. Format-only: cannot be changed after creation. Default 16k. Larger values (32k, 64k) can improve performance for large files but increase memory usage."; }
+function PARTITIONING_BTRFS_NODESIZE_menu()  {
+	dialog \
+		--title "Node Size" \
+		--inputbox "Enter the btrfs node size (e.g. 16k, 32k, 64k). Cannot be changed after creation." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BTRFS_NODESIZE" \
+		|| return 0
+	PARTITIONING_BTRFS_NODESIZE="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BTRFS_SECTORSIZE_tag()   { echo " ├ Sector size"; }
+function PARTITIONING_BTRFS_SECTORSIZE_label() { echo " ├ (${PARTITIONING_BTRFS_SECTORSIZE:-auto})"; }
+function PARTITIONING_BTRFS_SECTORSIZE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_SECTORSIZE_help()  { echo "Filesystem sector size. Format-only: cannot be changed after creation. Leave empty for auto-detection (recommended). Override only if your device reports incorrect sector size."; }
+function PARTITIONING_BTRFS_SECTORSIZE_menu()  {
+	dialog \
+		--title "Sector Size" \
+		--inputbox "Enter the sector size (e.g. 4k). Leave empty for auto-detection." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BTRFS_SECTORSIZE" \
+		|| return 0
+	PARTITIONING_BTRFS_SECTORSIZE="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BTRFS_MIXED_tag()   { echo " ├ Mixed data/metadata"; }
+function PARTITIONING_BTRFS_MIXED_label() { on_off_label "$PARTITIONING_BTRFS_MIXED" " ├ "; }
+function PARTITIONING_BTRFS_MIXED_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "btrfs_centric"; }
+function PARTITIONING_BTRFS_MIXED_help()  { echo "Mix data and metadata in the same block groups. Format-only. Only recommended for very small filesystems (<1GB) or testing. Cannot be changed after creation."; }
+function PARTITIONING_BTRFS_MIXED_menu()  {
+	on_off_toggle "PARTITIONING_BTRFS_MIXED"
+	UNSAVED_CHANGES=true
 }
 
 function PARTITIONING_BCACHEFS_USE_ENCRYPTION_tag()   { echo " ├ Bcachefs Native Encryption"; }

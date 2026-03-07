@@ -261,7 +261,11 @@ function format() {
 function format_zfs() {
 	USED_ZFS=true
 
-	local known_arguments=('+ids' '?pool_type' '?encrypt' '?compress')
+	local known_arguments=('+ids' '?pool_type' '?encrypt' '?compress'
+		'?ashift' '?autotrim' '?recordsize' '?checksum' '?dedup'
+		'?acltype' '?atime' '?relatime' '?xattr' '?dnodesize'
+		'?sync' '?primarycache' '?secondarycache' '?logbias'
+		'?redundant_metadata' '?snapdir' '?failmode' '?autoexpand')
 	local extra_arguments=()
 	declare -A arguments; parse_arguments "$@"
 
@@ -277,7 +281,8 @@ function format_zfs() {
 function format_btrfs() {
 	USED_BTRFS=true
 
-	local known_arguments=('+ids' '?raid_type' '?label')
+	local known_arguments=('+ids' '?raid_type' '?label'
+		'?metadata_raid' '?checksum' '?nodesize' '?sectorsize' '?mixed')
 	local extra_arguments=()
 	declare -A arguments; parse_arguments "$@"
 
@@ -427,7 +432,11 @@ function create_existing_partitions_layout() {
 #   compress=[false|<compression>]  Compress the zfs datasets. For valid values visit man zfsprops. Defaults to false if not given.
 #   pool_type=[standard|custom]     Select zfs pool type. Custom pools allow you to do the pool creation yourself. Defaults to standard.
 function create_zfs_centric_layout() {
-	local known_arguments=('+swap' '?type' '?encrypt' '?compress' '?pool_type')
+	local known_arguments=('+swap' '?type' '?encrypt' '?compress' '?pool_type'
+		'?ashift' '?autotrim' '?recordsize' '?checksum' '?dedup'
+		'?acltype' '?atime' '?relatime' '?xattr' '?dnodesize'
+		'?sync' '?primarycache' '?secondarycache' '?logbias'
+		'?redundant_metadata' '?snapdir' '?failmode' '?autoexpand')
 	local extra_arguments=()
 	declare -A arguments; parse_arguments "$@"
 
@@ -438,6 +447,24 @@ function create_zfs_centric_layout() {
 	local type="${arguments[type]:-efi}"
 	local encrypt="${arguments[encrypt]:-false}"
 	local pool_type="${arguments[pool_type]:-standard}"
+	local ashift="${arguments[ashift]:-12}"
+	local autotrim="${arguments[autotrim]:-off}"
+	local recordsize="${arguments[recordsize]:-128K}"
+	local checksum="${arguments[checksum]:-on}"
+	local dedup="${arguments[dedup]:-off}"
+	local acltype="${arguments[acltype]:-posix}"
+	local atime="${arguments[atime]:-off}"
+	local relatime="${arguments[relatime]:-off}"
+	local xattr="${arguments[xattr]:-sa}"
+	local dnodesize="${arguments[dnodesize]:-auto}"
+	local sync="${arguments[sync]:-standard}"
+	local primarycache="${arguments[primarycache]:-all}"
+	local secondarycache="${arguments[secondarycache]:-all}"
+	local logbias="${arguments[logbias]:-latency}"
+	local redundant_metadata="${arguments[redundant_metadata]:-all}"
+	local snapdir="${arguments[snapdir]:-hidden}"
+	local failmode="${arguments[failmode]:-wait}"
+	local autoexpand="${arguments[autoexpand]:-off}"
 
 	# Create layout on first disk
 	create_gpt new_id="gpt_dev0" device="${extra_arguments[0]}"
@@ -459,7 +486,14 @@ function create_zfs_centric_layout() {
 	format id="part_${type}_dev0" type="$type" label="$type"
 	[[ $size_swap != "false" ]] \
 		&& format id="part_swap_dev0" type=swap label=swap
-	format_zfs ids="$root_ids" encrypt="$encrypt" pool_type="$pool_type"
+	format_zfs ids="$root_ids" encrypt="$encrypt" pool_type="$pool_type" \
+		compress="${arguments[compress]:-false}" \
+		ashift="$ashift" autotrim="$autotrim" recordsize="$recordsize" \
+		checksum="$checksum" dedup="$dedup" acltype="$acltype" \
+		atime="$atime" relatime="$relatime" xattr="$xattr" dnodesize="$dnodesize" \
+		sync="$sync" primarycache="$primarycache" secondarycache="$secondarycache" \
+		logbias="$logbias" redundant_metadata="$redundant_metadata" \
+		snapdir="$snapdir" failmode="$failmode" autoexpand="$autoexpand"
 
 	if [[ $type == "efi" ]]; then
 		DISK_ID_EFI="part_${type}_dev0"
@@ -615,7 +649,10 @@ function create_raid1_luks_layout() {
 #   luks=[true|false]          Encrypt root partition and btrfs devices. Defaults to false if not given.
 #   raid_type=[raid0|raid1]    Select raid type. Defaults to raid0.
 function create_btrfs_centric_layout() {
-	local known_arguments=('+swap' '?type' '?luks' '?raid_type')
+	local known_arguments=('+swap' '?type' '?luks' '?raid_type'
+		'?compress' '?compress_level' '?metadata_raid' '?discard'
+		'?checksum' '?noatime' '?autodefrag' '?space_cache' '?ssd'
+		'?nodesize' '?sectorsize' '?mixed')
 	local extra_arguments=()
 	declare -A arguments; parse_arguments "$@"
 
@@ -626,6 +663,18 @@ function create_btrfs_centric_layout() {
 	local type="${arguments[type]:-efi}"
 	local use_luks="${arguments[luks]:-false}"
 	local raid_type="${arguments[raid_type]:-raid0}"
+	local compress="${arguments[compress]:-zstd}"
+	local compress_level="${arguments[compress_level]:-}"
+	local metadata_raid="${arguments[metadata_raid]:-auto}"
+	local discard="${arguments[discard]:-off}"
+	local checksum="${arguments[checksum]:-crc32c}"
+	local noatime="${arguments[noatime]:-true}"
+	local autodefrag="${arguments[autodefrag]:-off}"
+	local space_cache="${arguments[space_cache]:-v2}"
+	local ssd="${arguments[ssd]:-auto}"
+	local nodesize="${arguments[nodesize]:-16k}"
+	local sectorsize="${arguments[sectorsize]:-}"
+	local mixed="${arguments[mixed]:-false}"
 
 	# Create layout on first disk
 	create_gpt new_id="gpt_dev0" device="${extra_arguments[0]}"
@@ -660,7 +709,9 @@ function create_btrfs_centric_layout() {
 	format id="part_${type}_dev0" type="$type" label="$type"
 	[[ $size_swap != "false" ]] \
 		&& format id="part_swap_dev0" type=swap label=swap
-	format_btrfs ids="$root_ids" label=root raid_type="$raid_type"
+	format_btrfs ids="$root_ids" label=root raid_type="$raid_type" \
+		metadata_raid="$metadata_raid" checksum="$checksum" \
+		nodesize="$nodesize" sectorsize="$sectorsize" mixed="$mixed"
 
 	if [[ $type == "efi" ]]; then
 		DISK_ID_EFI="part_${type}_dev0"
@@ -671,7 +722,31 @@ function create_btrfs_centric_layout() {
 		&& DISK_ID_SWAP=part_swap_dev0
 	DISK_ID_ROOT="$root_id"
 	DISK_ID_ROOT_TYPE="btrfs"
-	DISK_ID_ROOT_MOUNT_OPTS="defaults,noatime,compress=zstd,subvol=/root"
+
+	# Build mount options dynamically
+	local mount_opts="defaults"
+	[[ "$noatime" == "true" ]] && mount_opts+=",noatime"
+	if [[ "$compress" != "none" ]]; then
+		if [[ "$compress" == "zstd" && -n "$compress_level" ]]; then
+			mount_opts+=",compress=zstd:$compress_level"
+		else
+			mount_opts+=",compress=$compress"
+		fi
+	fi
+	if [[ "$discard" == "async" ]]; then
+		mount_opts+=",discard=async"
+	elif [[ "$discard" == "on" ]]; then
+		mount_opts+=",discard"
+	fi
+	[[ "$autodefrag" == "on" ]] && mount_opts+=",autodefrag"
+	mount_opts+=",space_cache=$space_cache"
+	if [[ "$ssd" == "on" ]]; then
+		mount_opts+=",ssd"
+	elif [[ "$ssd" == "off" ]]; then
+		mount_opts+=",nossd"
+	fi
+	mount_opts+=",subvol=/root"
+	DISK_ID_ROOT_MOUNT_OPTS="$mount_opts"
 }
 
 function create_btrfs_raid_layout() {

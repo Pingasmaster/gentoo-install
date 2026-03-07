@@ -485,20 +485,37 @@ function disk_format() {
 # $1: either 'true' or 'false' determining if the datasets should be encrypted
 # $2: either 'false' or a value determining the dataset compression algorithm
 # $3: a string describing all device paths (for error messages)
+# $4: name of associative array containing pool properties
+# $5: name of associative array containing dataset properties
 # $@: device paths
 function format_zfs_standard() {
 	local encrypt="$1"
 	local compress="$2"
 	local device_desc="$3"
-	shift 3
+	local -n _pool_props="$4"
+	local -n _dataset_props="$5"
+	shift 5
 	local devices=("$@")
-	local extra_args=()
+	local pool_args=()
+	local dataset_args=()
 
-	einfo "Creating zfs pool on $devices_desc"
+	einfo "Creating zfs pool on $device_desc"
+
+	# Pool properties (-o)
+	local key
+	for key in "${!_pool_props[@]}"; do
+		pool_args+=("-o" "${key}=${_pool_props[$key]}")
+	done
+
+	# Dataset properties (-O) — always include internal defaults
+	dataset_args+=("-O" "mountpoint=none" "-O" "canmount=noauto" "-O" "devices=off")
+	for key in "${!_dataset_props[@]}"; do
+		dataset_args+=("-O" "${key}=${_dataset_props[$key]}")
+	done
 
 	local zfs_stdin=""
 	if [[ "$encrypt" == true ]]; then
-		extra_args+=(
+		dataset_args+=(
 			"-O" "encryption=aes-256-gcm"
 			"-O" "keyformat=passphrase"
 			"-O" "keylocation=prompt"
@@ -507,22 +524,14 @@ function format_zfs_standard() {
 		zfs_stdin="$GENTOO_INSTALL_ENCRYPTION_KEY"
 	fi
 
-	# dnodesize=legacy might be needed for GRUB2, but auto is preferred for xattr=sa.
 	zpool create \
 		-R "$ROOT_MOUNTPOINT" \
-		-o ashift=12          \
-		-O acltype=posix      \
-		-O atime=off          \
-		-O xattr=sa           \
-		-O dnodesize=auto     \
-		-O mountpoint=none    \
-		-O canmount=noauto    \
-		-O devices=off        \
-		"${extra_args[@]}"    \
+		"${pool_args[@]}"     \
+		"${dataset_args[@]}"  \
 		rpool                 \
 		"${devices[@]}"       \
 			<<< "$zfs_stdin"  \
-		|| die "Could not create zfs pool on $devices_desc"
+		|| die "Could not create zfs pool on $device_desc"
 
 	if [[ "$compress" != false ]]; then
 		zfs set "compression=$compress" rpool \
@@ -604,7 +613,45 @@ function disk_format_zfs() {
 	if [[ "$pool_type" == "custom" ]]; then
 		format_zfs_custom "$devices_desc" "${devices[@]}"
 	else
-		format_zfs_standard "$encrypt" "$compress" "$devices_desc" "${devices[@]}"
+		# Build pool properties
+		declare -A pool_props
+		pool_props[ashift]="${arguments[ashift]:-12}"
+		local autotrim="${arguments[autotrim]:-off}"
+		[[ "$autotrim" != "off" ]] && pool_props[autotrim]="$autotrim"
+		local failmode="${arguments[failmode]:-wait}"
+		[[ "$failmode" != "wait" ]] && pool_props[failmode]="$failmode"
+		local autoexpand="${arguments[autoexpand]:-off}"
+		[[ "$autoexpand" != "off" ]] && pool_props[autoexpand]="$autoexpand"
+
+		# Build dataset properties
+		declare -A dataset_props
+		dataset_props[acltype]="${arguments[acltype]:-posix}"
+		dataset_props[atime]="${arguments[atime]:-off}"
+		dataset_props[xattr]="${arguments[xattr]:-sa}"
+		dataset_props[dnodesize]="${arguments[dnodesize]:-auto}"
+
+		local relatime="${arguments[relatime]:-off}"
+		[[ "$relatime" != "off" ]] && dataset_props[relatime]="$relatime"
+		local recordsize="${arguments[recordsize]:-128K}"
+		[[ "$recordsize" != "128K" ]] && dataset_props[recordsize]="$recordsize"
+		local checksum="${arguments[checksum]:-on}"
+		[[ "$checksum" != "on" ]] && dataset_props[checksum]="$checksum"
+		local dedup="${arguments[dedup]:-off}"
+		[[ "$dedup" != "off" ]] && dataset_props[dedup]="$dedup"
+		local sync="${arguments[sync]:-standard}"
+		[[ "$sync" != "standard" ]] && dataset_props[sync]="$sync"
+		local primarycache="${arguments[primarycache]:-all}"
+		[[ "$primarycache" != "all" ]] && dataset_props[primarycache]="$primarycache"
+		local secondarycache="${arguments[secondarycache]:-all}"
+		[[ "$secondarycache" != "all" ]] && dataset_props[secondarycache]="$secondarycache"
+		local logbias="${arguments[logbias]:-latency}"
+		[[ "$logbias" != "latency" ]] && dataset_props[logbias]="$logbias"
+		local redundant_metadata="${arguments[redundant_metadata]:-all}"
+		[[ "$redundant_metadata" != "all" ]] && dataset_props[redundant_metadata]="$redundant_metadata"
+		local snapdir="${arguments[snapdir]:-hidden}"
+		[[ "$snapdir" != "hidden" ]] && dataset_props[snapdir]="$snapdir"
+
+		format_zfs_standard "$encrypt" "$compress" "$devices_desc" pool_props dataset_props "${devices[@]}"
 	fi
 }
 
@@ -641,13 +688,30 @@ function disk_format_btrfs() {
 
 	# Collect extra arguments
 	extra_args=()
-	if [[ "${#devices}" -gt 1 ]] && [[ -v "arguments[raid_type]" ]]; then
+	if [[ "${#devices[@]}" -gt 1 ]] && [[ -v "arguments[raid_type]" ]]; then
 		extra_args+=("-d" "$raid_type")
+	fi
+
+	local metadata_raid="${arguments[metadata_raid]:-auto}"
+	if [[ "$metadata_raid" != "auto" ]]; then
+		extra_args+=("-m" "$metadata_raid")
 	fi
 
 	if [[ -v "arguments[label]" ]]; then
 		extra_args+=("-L" "$label")
 	fi
+
+	local btrfs_checksum="${arguments[checksum]:-crc32c}"
+	[[ "$btrfs_checksum" != "crc32c" ]] && extra_args+=("--csum" "$btrfs_checksum")
+
+	local nodesize="${arguments[nodesize]:-16k}"
+	[[ "$nodesize" != "16k" ]] && extra_args+=("-n" "$nodesize")
+
+	local sectorsize="${arguments[sectorsize]:-}"
+	[[ -n "$sectorsize" ]] && extra_args+=("-s" "$sectorsize")
+
+	local mixed="${arguments[mixed]:-false}"
+	[[ "$mixed" == "true" ]] && extra_args+=("-M")
 
 	einfo "Creating btrfs on $devices_desc"
 	mkfs.btrfs -q "${extra_args[@]}" "${devices[@]}" \

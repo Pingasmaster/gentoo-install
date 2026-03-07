@@ -57,7 +57,30 @@ function disk_configuration() {
 	#   encrypt=[true|false]            Encrypt the zfs datasets. Defaults to false if not given.
 	#   compress=[false|<compression>]  Compress the zfs datasets. For valid values visit man zfsprops. Defaults to false if not given.
 	#   pool_type=[standard|custom]     Select zfs pool type. Custom pools allow you to do the pool creation yourself. Defaults to standard.
+	#
+	# Advanced ZFS pool properties (all optional, shown with defaults):
+	#   ashift=[9|12|13]                     Sector size as power of 2: 9=512B, 12=4K, 13=8K (default: 12). Format-only.
+	#   autotrim=[on|off]                    Auto TRIM/discard for SSDs (default: off)
+	#   failmode=[wait|continue|panic]       Behavior on device failure (default: wait)
+	#   autoexpand=[on|off]                  Auto-expand pool on disk replacement (default: off)
+	#
+	# Advanced ZFS dataset properties (all optional, shown with defaults):
+	#   atime=[off|on]                       Update access time on read (default: off)
+	#   relatime=[off|on]                    Relative atime, only when atime=on (default: off)
+	#   xattr=[on|sa]                        Extended attributes: sa=system attributes (default: sa)
+	#   dnodesize=[legacy|auto]              Dnode size: auto recommended with xattr=sa (default: auto)
+	#   acltype=[off|posix|nfsv4]            ACL type (default: posix)
+	#   recordsize=[4K..1M]                  Max block size for files (default: 128K)
+	#   checksum=[on|fletcher2|fletcher4|sha256|sha512|skein|edonr|blake3]  Data checksum (default: on)
+	#   dedup=[off|on|verify]                Block dedup, WARNING: ~5GB RAM/TB (default: off)
+	#   sync=[standard|always|disabled]      Sync behavior, WARNING: disabled=data loss risk (default: standard)
+	#   primarycache=[all|none|metadata]     ARC cache policy (default: all)
+	#   secondarycache=[all|none|metadata]   L2ARC cache policy (default: all)
+	#   logbias=[latency|throughput]          Write optimization hint (default: latency)
+	#   redundant_metadata=[all|most|some|none]  Metadata redundancy (default: all)
+	#   snapdir=[hidden|visible]             .zfs directory visibility (default: hidden)
 	#create_zfs_centric_layout type=efi swap=8GiB encrypt=true compress=zstd pool_type=standard
+	#create_zfs_centric_layout type=efi swap=8GiB compress=zstd ashift=12 autotrim=on recordsize=128K acltype=posix /dev/sdX
 
 	# 3. create_raid0_luks_layout
 	#
@@ -106,9 +129,25 @@ function disk_configuration() {
 	#   type=[efi|bios]          Selects the boot type. Defaults to efi if not given.
 	#   luks=[true|false]        Encrypt root partition and btrfs devices. Defaults
 	#                            to false if not given.
-	#   raid_type=[raid0|raid1]  Select raid type. Defaults to raid0.
+	#   raid_type=[single|dup|raid0|raid1|raid1c3|raid1c4|raid5|raid6|raid10]
+	#                                Select data raid type. Defaults to raid0.
+	#
+	# Advanced btrfs options (all optional, shown with defaults):
+	#   compress=[none|zlib|lzo|zstd]        Mount-time compression (default: zstd)
+	#   compress_level=<1-15>                Zstd compression level, only when compress=zstd (default: empty=3)
+	#   metadata_raid=[auto|single|dup|...]  Metadata raid type, separate from data (default: auto)
+	#   discard=[off|on|async]               TRIM/discard: async recommended for SSDs (default: off)
+	#   checksum=[crc32c|xxhash|sha256|blake2]  Checksum algorithm, format-only (default: crc32c)
+	#   noatime=[true|false]                 Disable access time updates (default: true)
+	#   autodefrag=[on|off]                  Auto defragmentation (default: off)
+	#   space_cache=[v1|v2]                  Space cache version (default: v2)
+	#   ssd=[auto|on|off]                    SSD optimization mode (default: auto)
+	#   nodesize=<size>                      B-tree node size, format-only (default: 16k)
+	#   sectorsize=<size>                    Sector size, format-only (default: auto)
+	#   mixed=[true|false]                   Mixed data/metadata blocks, format-only (default: false)
 	#create_btrfs_centric_layout swap=8GiB luks=false raid_type=raid0 /dev/sd{X,Y}
 	#create_btrfs_centric_layout swap=8GiB luks=true /dev/sdX
+	#create_btrfs_centric_layout swap=8GiB compress=zstd compress_level=3 discard=async checksum=xxhash /dev/sdX
 
 	# 6. create_bcachefs_centric_layout
 	#
