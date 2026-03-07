@@ -157,10 +157,20 @@ function define_zfs_compression() {
 
 function define_bcachefs_compression() {
 	if [[ $PARTITIONING_BCACHEFS_USE_COMPRESSION != "false" ]]; then
-		echo -n "${PARTITIONING_BCACHEFS_COMPRESSION@Q}"
+		local val="$PARTITIONING_BCACHEFS_COMPRESSION"
+		[[ -n "$PARTITIONING_BCACHEFS_COMPRESSION_LEVEL" ]] && val+=":$PARTITIONING_BCACHEFS_COMPRESSION_LEVEL"
+		echo -n "${val@Q}"
 	else
 		echo -n "false"
 	fi
+}
+
+function define_bcachefs_bg_compression() {
+	local val="$PARTITIONING_BCACHEFS_BG_COMPRESSION"
+	if [[ "$val" != "none" && -n "$PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL" ]]; then
+		val+=":$PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL"
+	fi
+	echo -n "${val@Q}"
 }
 
 function define_disk_layout() {
@@ -176,7 +186,7 @@ function define_disk_layout() {
 		    define_disk_configuration_function "create_existing_partitions_layout boot=${PARTITIONING_BOOT_DEVICE@Q} swap=${swapdev@Q} type=${PARTITIONING_BOOT_TYPE@Q}" "${PARTITIONING_DEVICE@Q}" ;;
 		"zfs_centric")         define_disk_configuration_function "create_zfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_ZFS_USE_ENCRYPTION@Q} compress=$(define_zfs_compression) pool_type=${PARTITIONING_ZFS_POOL_TYPE@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"btrfs_centric")       define_disk_configuration_function "create_btrfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} raid_type=${PARTITIONING_BTRFS_RAID_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
-		"bcachefs_centric")    define_disk_configuration_function "create_bcachefs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_BCACHEFS_USE_ENCRYPTION@Q} luks=${PARTITIONING_USE_LUKS@Q} compress=$(define_bcachefs_compression) bg_compress=${PARTITIONING_BCACHEFS_BG_COMPRESSION@Q} errors=${PARTITIONING_BCACHEFS_ERRORS@Q} data_checksum=${PARTITIONING_BCACHEFS_DATA_CHECKSUM@Q} metadata_checksum=${PARTITIONING_BCACHEFS_METADATA_CHECKSUM@Q} str_hash=${PARTITIONING_BCACHEFS_STR_HASH@Q} block_size=${PARTITIONING_BCACHEFS_BLOCK_SIZE@Q} btree_node_size=${PARTITIONING_BCACHEFS_BTREE_NODE_SIZE@Q} data_replicas=${PARTITIONING_BCACHEFS_DATA_REPLICAS@Q} metadata_replicas=${PARTITIONING_BCACHEFS_METADATA_REPLICAS@Q} journal_flush_delay=${PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY@Q} journal_reclaim_delay=${PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY@Q} journal_flush_disabled=${PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED@Q} erasure_code=${PARTITIONING_BCACHEFS_ERASURE_CODE@Q} inodes_32bit=${PARTITIONING_BCACHEFS_INODES_32BIT@Q} shard_inode_numbers=${PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS@Q} wide_macs=${PARTITIONING_BCACHEFS_WIDE_MACS@Q} inline_data=${PARTITIONING_BCACHEFS_INLINE_DATA@Q} acl=${PARTITIONING_BCACHEFS_ACL@Q} usrquota=${PARTITIONING_BCACHEFS_USRQUOTA@Q} grpquota=${PARTITIONING_BCACHEFS_GRPQUOTA@Q} prjquota=${PARTITIONING_BCACHEFS_PRJQUOTA@Q} discard=${PARTITIONING_BCACHEFS_DISCARD@Q} foreground_target=${PARTITIONING_BCACHEFS_FOREGROUND_TARGET@Q} metadata_target=${PARTITIONING_BCACHEFS_METADATA_TARGET@Q} background_target=${PARTITIONING_BCACHEFS_BACKGROUND_TARGET@Q} promote_target=${PARTITIONING_BCACHEFS_PROMOTE_TARGET@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
+		"bcachefs_centric")    define_disk_configuration_function "create_bcachefs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_BCACHEFS_USE_ENCRYPTION@Q} luks=${PARTITIONING_USE_LUKS@Q} compress=$(define_bcachefs_compression) bg_compress=$(define_bcachefs_bg_compression) errors=${PARTITIONING_BCACHEFS_ERRORS@Q} data_checksum=${PARTITIONING_BCACHEFS_DATA_CHECKSUM@Q} metadata_checksum=${PARTITIONING_BCACHEFS_METADATA_CHECKSUM@Q} str_hash=${PARTITIONING_BCACHEFS_STR_HASH@Q} block_size=${PARTITIONING_BCACHEFS_BLOCK_SIZE@Q} btree_node_size=${PARTITIONING_BCACHEFS_BTREE_NODE_SIZE@Q} data_replicas=${PARTITIONING_BCACHEFS_DATA_REPLICAS@Q} metadata_replicas=${PARTITIONING_BCACHEFS_METADATA_REPLICAS@Q} journal_flush_delay=${PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY@Q} journal_reclaim_delay=${PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY@Q} journal_flush_disabled=${PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED@Q} erasure_code=${PARTITIONING_BCACHEFS_ERASURE_CODE@Q} inodes_32bit=${PARTITIONING_BCACHEFS_INODES_32BIT@Q} shard_inode_numbers=${PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS@Q} wide_macs=${PARTITIONING_BCACHEFS_WIDE_MACS@Q} inline_data=${PARTITIONING_BCACHEFS_INLINE_DATA@Q} acl=${PARTITIONING_BCACHEFS_ACL@Q} usrquota=${PARTITIONING_BCACHEFS_USRQUOTA@Q} grpquota=${PARTITIONING_BCACHEFS_GRPQUOTA@Q} prjquota=${PARTITIONING_BCACHEFS_PRJQUOTA@Q} discard=${PARTITIONING_BCACHEFS_DISCARD@Q} foreground_target=${PARTITIONING_BCACHEFS_FOREGROUND_TARGET@Q} metadata_target=${PARTITIONING_BCACHEFS_METADATA_TARGET@Q} background_target=${PARTITIONING_BCACHEFS_BACKGROUND_TARGET@Q} promote_target=${PARTITIONING_BCACHEFS_PROMOTE_TARGET@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"raid0_luks")          define_disk_configuration_function "create_raid0_luks_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"raid1_luks")          define_disk_configuration_function "create_raid1_luks_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"custom")
@@ -267,9 +277,26 @@ function parse_bcachefs_compression() {
 	if [[ $1 == "false" ]]; then
 		PARTITIONING_BCACHEFS_USE_COMPRESSION=false
 		PARTITIONING_BCACHEFS_COMPRESSION=zstd
+		PARTITIONING_BCACHEFS_COMPRESSION_LEVEL=""
 	else
 		PARTITIONING_BCACHEFS_USE_COMPRESSION=true
-		PARTITIONING_BCACHEFS_COMPRESSION="$1"
+		if [[ "$1" == *:* ]]; then
+			PARTITIONING_BCACHEFS_COMPRESSION="${1%%:*}"
+			PARTITIONING_BCACHEFS_COMPRESSION_LEVEL="${1#*:}"
+		else
+			PARTITIONING_BCACHEFS_COMPRESSION="$1"
+			PARTITIONING_BCACHEFS_COMPRESSION_LEVEL=""
+		fi
+	fi
+}
+
+function parse_bcachefs_bg_compression() {
+	if [[ "$1" == *:* ]]; then
+		PARTITIONING_BCACHEFS_BG_COMPRESSION="${1%%:*}"
+		PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL="${1#*:}"
+	else
+		PARTITIONING_BCACHEFS_BG_COMPRESSION="$1"
+		PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL=""
 	fi
 }
 
@@ -388,7 +415,7 @@ function create_bcachefs_centric_layout() {
 	PARTITIONING_BCACHEFS_USE_ENCRYPTION="${arguments[encrypt]:-false}"
 	PARTITIONING_USE_LUKS="${arguments[luks]:-false}"
 	parse_bcachefs_compression "${arguments[compress]:-false}"
-	PARTITIONING_BCACHEFS_BG_COMPRESSION="${arguments[bg_compress]:-none}"
+	parse_bcachefs_bg_compression "${arguments[bg_compress]:-none}"
 	PARTITIONING_BCACHEFS_ERRORS="${arguments[errors]:-continue}"
 	PARTITIONING_BCACHEFS_DATA_CHECKSUM="${arguments[data_checksum]:-crc32c}"
 	PARTITIONING_BCACHEFS_METADATA_CHECKSUM="${arguments[metadata_checksum]:-crc32c}"
@@ -518,7 +545,9 @@ function load_default_config() {
 	PARTITIONING_BCACHEFS_USE_ENCRYPTION=false
 	PARTITIONING_BCACHEFS_USE_COMPRESSION=false
 	PARTITIONING_BCACHEFS_COMPRESSION=zstd
+	PARTITIONING_BCACHEFS_COMPRESSION_LEVEL=""
 	PARTITIONING_BCACHEFS_BG_COMPRESSION=none
+	PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL=""
 	PARTITIONING_BCACHEFS_ERRORS=continue
 	PARTITIONING_BCACHEFS_DATA_CHECKSUM=crc32c
 	PARTITIONING_BCACHEFS_METADATA_CHECKSUM=crc32c
@@ -975,7 +1004,9 @@ MENU_ITEMS=(
 	"PARTITIONING_BCACHEFS_USE_ENCRYPTION"
 	"PARTITIONING_BCACHEFS_USE_COMPRESSION"
 	"PARTITIONING_BCACHEFS_COMPRESSION"
+	"PARTITIONING_BCACHEFS_COMPRESSION_LEVEL"
 	"PARTITIONING_BCACHEFS_BG_COMPRESSION"
+	"PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL"
 	"PARTITIONING_BCACHEFS_DATA_REPLICAS"
 	"PARTITIONING_BCACHEFS_METADATA_REPLICAS"
 	"PARTITIONING_BCACHEFS_DATA_CHECKSUM"
@@ -1322,6 +1353,20 @@ function PARTITIONING_BCACHEFS_COMPRESSION_menu()  {
 	fi
 }
 
+function PARTITIONING_BCACHEFS_COMPRESSION_LEVEL_tag()   { echo " │  └ Compression level"; }
+function PARTITIONING_BCACHEFS_COMPRESSION_LEVEL_label() { echo " │  └ (${PARTITIONING_BCACHEFS_COMPRESSION_LEVEL:-default})"; }
+function PARTITIONING_BCACHEFS_COMPRESSION_LEVEL_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric" && is_on "$PARTITIONING_BCACHEFS_USE_COMPRESSION"; }
+function PARTITIONING_BCACHEFS_COMPRESSION_LEVEL_help()  { echo "Compression level (0-15). 0 = default, 1 = fastest, 15 = best ratio. Leave empty for default."; }
+function PARTITIONING_BCACHEFS_COMPRESSION_LEVEL_menu()  {
+	dialog \
+		--title "Compression Level" \
+		--inputbox "Enter compression level (0-15). 0 = default, 1 = fastest, 15 = best ratio. Leave empty for default." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_COMPRESSION_LEVEL" \
+		|| return 0
+	PARTITIONING_BCACHEFS_COMPRESSION_LEVEL="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
 function PARTITIONING_BCACHEFS_BG_COMPRESSION_tag()   { echo " ├ Background Compression"; }
 function PARTITIONING_BCACHEFS_BG_COMPRESSION_label() { echo " ├ ($PARTITIONING_BCACHEFS_BG_COMPRESSION)"; }
 function PARTITIONING_BCACHEFS_BG_COMPRESSION_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
@@ -1338,6 +1383,20 @@ function PARTITIONING_BCACHEFS_BG_COMPRESSION_menu()  {
 	else
 		true
 	fi
+}
+
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL_tag()   { echo " │  └ Background compression level"; }
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL_label() { echo " │  └ (${PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL:-default})"; }
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric" && [[ "$PARTITIONING_BCACHEFS_BG_COMPRESSION" != "none" ]]; }
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL_help()  { echo "Background compression level (0-15). 0 = default, 1 = fastest, 15 = best ratio. Leave empty for default."; }
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL_menu()  {
+	dialog \
+		--title "Background Compression Level" \
+		--inputbox "Enter background compression level (0-15). 0 = default, 1 = fastest, 15 = best ratio. Leave empty for default." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL" \
+		|| return 0
+	PARTITIONING_BCACHEFS_BG_COMPRESSION_LEVEL="$dialog_out"
+	UNSAVED_CHANGES=true
 }
 
 function PARTITIONING_BCACHEFS_DATA_REPLICAS_tag()   { echo " ├ Data Replicas"; }
