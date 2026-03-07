@@ -7,14 +7,11 @@ source "$GENTOO_INSTALL_REPO_DIR/scripts/protection.sh" || exit 1
 
 function sync_time() {
 	einfo "Syncing time"
-	if command -v ntpd &> /dev/null; then
-		try ntpd -g -q
-	elif command -v chrony &> /dev/null; then
+	if command -v chrony &> /dev/null; then
 		# See https://github.com/oddlama/gentoo-install/pull/122
 		try chronyd -q
 	else
-		# why am I doing this?
-		try date -s "$(curl -sI http://example.com | grep -i ^date: | cut -d' ' -f3-)"
+		die "chrony is required for time synchronization but was not found"
 	fi
 
 	einfo "Current date: $(LANG=C date)"
@@ -80,7 +77,7 @@ function prepare_installation_environment() {
 		gpg
 		hwclock
 		lsblk
-		ntpd
+		chrony=chronyd
 		partprobe
 		python3
 		"?rhash"
