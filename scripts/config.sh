@@ -290,10 +290,18 @@ function format_btrfs() {
 # ids:       List of ids for devices / partitions created earlier. Must contain at least 1 element.
 # encrypt:   Whether or not to encrypt using bcachefs native encryption
 # compress:  Compression algorithm (false, zstd, lz4, gzip)
+# All other bcachefs format-time options are optional (see bcachefs Principles of Operation, Section 4.2)
 function format_bcachefs() {
 	USED_BCACHEFS=true
 
-	local known_arguments=('+ids' '?encrypt' '?compress')
+	local known_arguments=('+ids' '?encrypt' '?compress'
+		'?bg_compress' '?errors' '?data_checksum' '?metadata_checksum'
+		'?str_hash' '?block_size' '?btree_node_size' '?data_replicas'
+		'?metadata_replicas' '?journal_flush_delay' '?journal_reclaim_delay'
+		'?journal_flush_disabled' '?erasure_code' '?inodes_32bit'
+		'?shard_inode_numbers' '?wide_macs' '?inline_data' '?acl'
+		'?usrquota' '?grpquota' '?prjquota' '?discard'
+		'?foreground_target' '?metadata_target' '?background_target' '?promote_target')
 	local extra_arguments=()
 	declare -A arguments; parse_arguments "$@"
 
@@ -679,7 +687,14 @@ function create_btrfs_raid_layout() {
 #   luks=[true|false]                   Encrypt using LUKS. Defaults to false if not given.
 #   compress=[false|<compression>]      Compress the bcachefs filesystem (zstd, lz4, gzip). Defaults to false if not given.
 function create_bcachefs_centric_layout() {
-	local known_arguments=('+swap' '?type' '?encrypt' '?luks' '?compress')
+	local known_arguments=('+swap' '?type' '?encrypt' '?luks' '?compress'
+		'?bg_compress' '?errors' '?data_checksum' '?metadata_checksum'
+		'?str_hash' '?block_size' '?btree_node_size' '?data_replicas'
+		'?metadata_replicas' '?journal_flush_delay' '?journal_reclaim_delay'
+		'?journal_flush_disabled' '?erasure_code' '?inodes_32bit'
+		'?shard_inode_numbers' '?wide_macs' '?inline_data' '?acl'
+		'?usrquota' '?grpquota' '?prjquota' '?discard'
+		'?foreground_target' '?metadata_target' '?background_target' '?promote_target')
 	local extra_arguments=()
 	declare -A arguments; parse_arguments "$@"
 
@@ -691,6 +706,32 @@ function create_bcachefs_centric_layout() {
 	local encrypt="${arguments[encrypt]:-false}"
 	local use_luks="${arguments[luks]:-false}"
 	local compress="${arguments[compress]:-false}"
+	local bg_compress="${arguments[bg_compress]:-none}"
+	local errors="${arguments[errors]:-continue}"
+	local data_checksum="${arguments[data_checksum]:-crc32c}"
+	local metadata_checksum="${arguments[metadata_checksum]:-crc32c}"
+	local str_hash="${arguments[str_hash]:-siphash}"
+	local block_size="${arguments[block_size]:-4k}"
+	local btree_node_size="${arguments[btree_node_size]:-256k}"
+	local data_replicas="${arguments[data_replicas]:-1}"
+	local metadata_replicas="${arguments[metadata_replicas]:-1}"
+	local journal_flush_delay="${arguments[journal_flush_delay]:-1000}"
+	local journal_reclaim_delay="${arguments[journal_reclaim_delay]:-100}"
+	local journal_flush_disabled="${arguments[journal_flush_disabled]:-false}"
+	local erasure_code="${arguments[erasure_code]:-false}"
+	local inodes_32bit="${arguments[inodes_32bit]:-false}"
+	local shard_inode_numbers="${arguments[shard_inode_numbers]:-false}"
+	local wide_macs="${arguments[wide_macs]:-false}"
+	local inline_data="${arguments[inline_data]:-true}"
+	local acl="${arguments[acl]:-false}"
+	local usrquota="${arguments[usrquota]:-false}"
+	local grpquota="${arguments[grpquota]:-false}"
+	local prjquota="${arguments[prjquota]:-false}"
+	local discard="${arguments[discard]:-false}"
+	local foreground_target="${arguments[foreground_target]:-}"
+	local metadata_target="${arguments[metadata_target]:-}"
+	local background_target="${arguments[background_target]:-}"
+	local promote_target="${arguments[promote_target]:-}"
 
 	# Cannot use both LUKS and native encryption simultaneously
 	[[ "$encrypt" == "true" && "$use_luks" == "true" ]] \
@@ -729,7 +770,19 @@ function create_bcachefs_centric_layout() {
 	format id="part_${type}_dev0" type="$type" label="$type"
 	[[ $size_swap != "false" ]] \
 		&& format id="part_swap_dev0" type=swap label=swap
-	format_bcachefs ids="$root_ids" encrypt="$encrypt" compress="$compress"
+	format_bcachefs ids="$root_ids" encrypt="$encrypt" compress="$compress" \
+		bg_compress="$bg_compress" errors="$errors" \
+		data_checksum="$data_checksum" metadata_checksum="$metadata_checksum" \
+		str_hash="$str_hash" block_size="$block_size" btree_node_size="$btree_node_size" \
+		data_replicas="$data_replicas" metadata_replicas="$metadata_replicas" \
+		journal_flush_delay="$journal_flush_delay" journal_reclaim_delay="$journal_reclaim_delay" \
+		journal_flush_disabled="$journal_flush_disabled" erasure_code="$erasure_code" \
+		inodes_32bit="$inodes_32bit" shard_inode_numbers="$shard_inode_numbers" \
+		wide_macs="$wide_macs" inline_data="$inline_data" \
+		acl="$acl" usrquota="$usrquota" grpquota="$grpquota" prjquota="$prjquota" \
+		discard="$discard" \
+		foreground_target="$foreground_target" metadata_target="$metadata_target" \
+		background_target="$background_target" promote_target="$promote_target"
 
 	if [[ $type == "efi" ]]; then
 		DISK_ID_EFI="part_${type}_dev0"

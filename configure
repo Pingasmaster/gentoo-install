@@ -176,7 +176,7 @@ function define_disk_layout() {
 		    define_disk_configuration_function "create_existing_partitions_layout boot=${PARTITIONING_BOOT_DEVICE@Q} swap=${swapdev@Q} type=${PARTITIONING_BOOT_TYPE@Q}" "${PARTITIONING_DEVICE@Q}" ;;
 		"zfs_centric")         define_disk_configuration_function "create_zfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_ZFS_USE_ENCRYPTION@Q} compress=$(define_zfs_compression) pool_type=${PARTITIONING_ZFS_POOL_TYPE@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"btrfs_centric")       define_disk_configuration_function "create_btrfs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} raid_type=${PARTITIONING_BTRFS_RAID_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
-		"bcachefs_centric")    define_disk_configuration_function "create_bcachefs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_BCACHEFS_USE_ENCRYPTION@Q} luks=${PARTITIONING_USE_LUKS@Q} compress=$(define_bcachefs_compression)" "${PARTITIONING_DEVICES[@]@Q}" ;;
+		"bcachefs_centric")    define_disk_configuration_function "create_bcachefs_centric_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} encrypt=${PARTITIONING_BCACHEFS_USE_ENCRYPTION@Q} luks=${PARTITIONING_USE_LUKS@Q} compress=$(define_bcachefs_compression) bg_compress=${PARTITIONING_BCACHEFS_BG_COMPRESSION@Q} errors=${PARTITIONING_BCACHEFS_ERRORS@Q} data_checksum=${PARTITIONING_BCACHEFS_DATA_CHECKSUM@Q} metadata_checksum=${PARTITIONING_BCACHEFS_METADATA_CHECKSUM@Q} str_hash=${PARTITIONING_BCACHEFS_STR_HASH@Q} block_size=${PARTITIONING_BCACHEFS_BLOCK_SIZE@Q} btree_node_size=${PARTITIONING_BCACHEFS_BTREE_NODE_SIZE@Q} data_replicas=${PARTITIONING_BCACHEFS_DATA_REPLICAS@Q} metadata_replicas=${PARTITIONING_BCACHEFS_METADATA_REPLICAS@Q} journal_flush_delay=${PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY@Q} journal_reclaim_delay=${PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY@Q} journal_flush_disabled=${PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED@Q} erasure_code=${PARTITIONING_BCACHEFS_ERASURE_CODE@Q} inodes_32bit=${PARTITIONING_BCACHEFS_INODES_32BIT@Q} shard_inode_numbers=${PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS@Q} wide_macs=${PARTITIONING_BCACHEFS_WIDE_MACS@Q} inline_data=${PARTITIONING_BCACHEFS_INLINE_DATA@Q} acl=${PARTITIONING_BCACHEFS_ACL@Q} usrquota=${PARTITIONING_BCACHEFS_USRQUOTA@Q} grpquota=${PARTITIONING_BCACHEFS_GRPQUOTA@Q} prjquota=${PARTITIONING_BCACHEFS_PRJQUOTA@Q} discard=${PARTITIONING_BCACHEFS_DISCARD@Q} foreground_target=${PARTITIONING_BCACHEFS_FOREGROUND_TARGET@Q} metadata_target=${PARTITIONING_BCACHEFS_METADATA_TARGET@Q} background_target=${PARTITIONING_BCACHEFS_BACKGROUND_TARGET@Q} promote_target=${PARTITIONING_BCACHEFS_PROMOTE_TARGET@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"raid0_luks")          define_disk_configuration_function "create_raid0_luks_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"raid1_luks")          define_disk_configuration_function "create_raid1_luks_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICES[@]@Q}" ;;
 		"custom")
@@ -228,6 +228,10 @@ PARTITIONING_BTRFS_RAID_TYPES=("raid0" "raid1")
 PARTITIONING_ZFS_POOL_TYPES=("standard" "custom")
 PARTITIONING_ZFS_COMPRESSIONS=("on" "gzip" "lz4" "lzjb" "zle" "zstd" "zstd-fast")
 PARTITIONING_BCACHEFS_COMPRESSIONS=("zstd" "lz4" "gzip")
+PARTITIONING_BCACHEFS_BG_COMPRESSIONS=("none" "lz4" "gzip" "zstd")
+PARTITIONING_BCACHEFS_ERROR_ACTIONS=("continue" "ro" "panic")
+PARTITIONING_BCACHEFS_CHECKSUM_TYPES=("none" "crc32c" "crc64")
+PARTITIONING_BCACHEFS_STR_HASH_TYPES=("crc32c" "crc64" "siphash")
 
 PORTAGE_SYNC_TYPES=("git" "rsync")
 KERNEL_TYPES=(
@@ -367,7 +371,14 @@ function create_btrfs_centric_layout() {
 function create_bcachefs_centric_layout() {
 	PARTITIONING_SCHEME="bcachefs_centric"
 
-	local known_arguments=('+swap' '?type' '?encrypt' '?luks' '?compress')
+	local known_arguments=('+swap' '?type' '?encrypt' '?luks' '?compress'
+		'?bg_compress' '?errors' '?data_checksum' '?metadata_checksum'
+		'?str_hash' '?block_size' '?btree_node_size' '?data_replicas'
+		'?metadata_replicas' '?journal_flush_delay' '?journal_reclaim_delay'
+		'?journal_flush_disabled' '?erasure_code' '?inodes_32bit'
+		'?shard_inode_numbers' '?wide_macs' '?inline_data' '?acl'
+		'?usrquota' '?grpquota' '?prjquota' '?discard'
+		'?foreground_target' '?metadata_target' '?background_target' '?promote_target')
 	local extra_arguments=()
 	declare -A arguments; parse_arguments "$@"
 
@@ -377,6 +388,32 @@ function create_bcachefs_centric_layout() {
 	PARTITIONING_BCACHEFS_USE_ENCRYPTION="${arguments[encrypt]:-false}"
 	PARTITIONING_USE_LUKS="${arguments[luks]:-false}"
 	parse_bcachefs_compression "${arguments[compress]:-false}"
+	PARTITIONING_BCACHEFS_BG_COMPRESSION="${arguments[bg_compress]:-none}"
+	PARTITIONING_BCACHEFS_ERRORS="${arguments[errors]:-continue}"
+	PARTITIONING_BCACHEFS_DATA_CHECKSUM="${arguments[data_checksum]:-crc32c}"
+	PARTITIONING_BCACHEFS_METADATA_CHECKSUM="${arguments[metadata_checksum]:-crc32c}"
+	PARTITIONING_BCACHEFS_STR_HASH="${arguments[str_hash]:-siphash}"
+	PARTITIONING_BCACHEFS_BLOCK_SIZE="${arguments[block_size]:-4k}"
+	PARTITIONING_BCACHEFS_BTREE_NODE_SIZE="${arguments[btree_node_size]:-256k}"
+	PARTITIONING_BCACHEFS_DATA_REPLICAS="${arguments[data_replicas]:-1}"
+	PARTITIONING_BCACHEFS_METADATA_REPLICAS="${arguments[metadata_replicas]:-1}"
+	PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY="${arguments[journal_flush_delay]:-1000}"
+	PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY="${arguments[journal_reclaim_delay]:-100}"
+	PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED="${arguments[journal_flush_disabled]:-false}"
+	PARTITIONING_BCACHEFS_ERASURE_CODE="${arguments[erasure_code]:-false}"
+	PARTITIONING_BCACHEFS_INODES_32BIT="${arguments[inodes_32bit]:-false}"
+	PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS="${arguments[shard_inode_numbers]:-false}"
+	PARTITIONING_BCACHEFS_WIDE_MACS="${arguments[wide_macs]:-false}"
+	PARTITIONING_BCACHEFS_INLINE_DATA="${arguments[inline_data]:-true}"
+	PARTITIONING_BCACHEFS_ACL="${arguments[acl]:-false}"
+	PARTITIONING_BCACHEFS_USRQUOTA="${arguments[usrquota]:-false}"
+	PARTITIONING_BCACHEFS_GRPQUOTA="${arguments[grpquota]:-false}"
+	PARTITIONING_BCACHEFS_PRJQUOTA="${arguments[prjquota]:-false}"
+	PARTITIONING_BCACHEFS_DISCARD="${arguments[discard]:-false}"
+	PARTITIONING_BCACHEFS_FOREGROUND_TARGET="${arguments[foreground_target]:-}"
+	PARTITIONING_BCACHEFS_METADATA_TARGET="${arguments[metadata_target]:-}"
+	PARTITIONING_BCACHEFS_BACKGROUND_TARGET="${arguments[background_target]:-}"
+	PARTITIONING_BCACHEFS_PROMOTE_TARGET="${arguments[promote_target]:-}"
 }
 
 
@@ -481,6 +518,32 @@ function load_default_config() {
 	PARTITIONING_BCACHEFS_USE_ENCRYPTION=false
 	PARTITIONING_BCACHEFS_USE_COMPRESSION=false
 	PARTITIONING_BCACHEFS_COMPRESSION=zstd
+	PARTITIONING_BCACHEFS_BG_COMPRESSION=none
+	PARTITIONING_BCACHEFS_ERRORS=continue
+	PARTITIONING_BCACHEFS_DATA_CHECKSUM=crc32c
+	PARTITIONING_BCACHEFS_METADATA_CHECKSUM=crc32c
+	PARTITIONING_BCACHEFS_STR_HASH=siphash
+	PARTITIONING_BCACHEFS_BLOCK_SIZE=4k
+	PARTITIONING_BCACHEFS_BTREE_NODE_SIZE=256k
+	PARTITIONING_BCACHEFS_DATA_REPLICAS=1
+	PARTITIONING_BCACHEFS_METADATA_REPLICAS=1
+	PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY=1000
+	PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY=100
+	PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED=false
+	PARTITIONING_BCACHEFS_ERASURE_CODE=false
+	PARTITIONING_BCACHEFS_INODES_32BIT=false
+	PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS=false
+	PARTITIONING_BCACHEFS_WIDE_MACS=false
+	PARTITIONING_BCACHEFS_INLINE_DATA=true
+	PARTITIONING_BCACHEFS_ACL=false
+	PARTITIONING_BCACHEFS_USRQUOTA=false
+	PARTITIONING_BCACHEFS_GRPQUOTA=false
+	PARTITIONING_BCACHEFS_PRJQUOTA=false
+	PARTITIONING_BCACHEFS_DISCARD=false
+	PARTITIONING_BCACHEFS_FOREGROUND_TARGET=""
+	PARTITIONING_BCACHEFS_METADATA_TARGET=""
+	PARTITIONING_BCACHEFS_BACKGROUND_TARGET=""
+	PARTITIONING_BCACHEFS_PROMOTE_TARGET=""
 
 	# All settings are unsaved.
 	UNSAVED_CHANGES=true
@@ -912,6 +975,32 @@ MENU_ITEMS=(
 	"PARTITIONING_BCACHEFS_USE_ENCRYPTION"
 	"PARTITIONING_BCACHEFS_USE_COMPRESSION"
 	"PARTITIONING_BCACHEFS_COMPRESSION"
+	"PARTITIONING_BCACHEFS_BG_COMPRESSION"
+	"PARTITIONING_BCACHEFS_DATA_REPLICAS"
+	"PARTITIONING_BCACHEFS_METADATA_REPLICAS"
+	"PARTITIONING_BCACHEFS_DATA_CHECKSUM"
+	"PARTITIONING_BCACHEFS_METADATA_CHECKSUM"
+	"PARTITIONING_BCACHEFS_ERRORS"
+	"PARTITIONING_BCACHEFS_STR_HASH"
+	"PARTITIONING_BCACHEFS_BLOCK_SIZE"
+	"PARTITIONING_BCACHEFS_BTREE_NODE_SIZE"
+	"PARTITIONING_BCACHEFS_ERASURE_CODE"
+	"PARTITIONING_BCACHEFS_DISCARD"
+	"PARTITIONING_BCACHEFS_ACL"
+	"PARTITIONING_BCACHEFS_USRQUOTA"
+	"PARTITIONING_BCACHEFS_GRPQUOTA"
+	"PARTITIONING_BCACHEFS_PRJQUOTA"
+	"PARTITIONING_BCACHEFS_INLINE_DATA"
+	"PARTITIONING_BCACHEFS_INODES_32BIT"
+	"PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS"
+	"PARTITIONING_BCACHEFS_WIDE_MACS"
+	"PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY"
+	"PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED"
+	"PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY"
+	"PARTITIONING_BCACHEFS_FOREGROUND_TARGET"
+	"PARTITIONING_BCACHEFS_METADATA_TARGET"
+	"PARTITIONING_BCACHEFS_BACKGROUND_TARGET"
+	"PARTITIONING_BCACHEFS_PROMOTE_TARGET"
 	"PARTITIONING_DEVICE"
 	"PARTITIONING_DEVICES"
 	"--------"
@@ -1231,6 +1320,335 @@ function PARTITIONING_BCACHEFS_COMPRESSION_menu()  {
 		# Return to menu
 		true
 	fi
+}
+
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_tag()   { echo " ├ Background Compression"; }
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_label() { echo " ├ ($PARTITIONING_BCACHEFS_BG_COMPRESSION)"; }
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_help()  { echo "Background compression algorithm. Data is recompressed in the background using this algorithm. Set to 'none' to disable."; }
+function PARTITIONING_BCACHEFS_BG_COMPRESSION_menu()  {
+	if menu_radiolist \
+		"Select background compression" \
+		"Select the background compression algorithm. Data written with foreground compression can be recompressed in the background with a more efficient algorithm." \
+		"$PARTITIONING_BCACHEFS_BG_COMPRESSION" \
+		"${PARTITIONING_BCACHEFS_BG_COMPRESSIONS[@]}"
+	then
+		PARTITIONING_BCACHEFS_BG_COMPRESSION="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BCACHEFS_DATA_REPLICAS_tag()   { echo " ├ Data Replicas"; }
+function PARTITIONING_BCACHEFS_DATA_REPLICAS_label() { echo " ├ ($PARTITIONING_BCACHEFS_DATA_REPLICAS)"; }
+function PARTITIONING_BCACHEFS_DATA_REPLICAS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_DATA_REPLICAS_help()  { echo "Number of replicas for user data. Requires multiple devices for values > 1."; }
+function PARTITIONING_BCACHEFS_DATA_REPLICAS_menu()  {
+	dialog \
+		--title "Data Replicas" \
+		--inputbox "Enter the number of data replicas (e.g. 1, 2)." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_DATA_REPLICAS" \
+		|| return 0
+	PARTITIONING_BCACHEFS_DATA_REPLICAS="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_METADATA_REPLICAS_tag()   { echo " ├ Metadata Replicas"; }
+function PARTITIONING_BCACHEFS_METADATA_REPLICAS_label() { echo " ├ ($PARTITIONING_BCACHEFS_METADATA_REPLICAS)"; }
+function PARTITIONING_BCACHEFS_METADATA_REPLICAS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_METADATA_REPLICAS_help()  { echo "Number of replicas for metadata (journal and btree). Requires multiple devices for values > 1."; }
+function PARTITIONING_BCACHEFS_METADATA_REPLICAS_menu()  {
+	dialog \
+		--title "Metadata Replicas" \
+		--inputbox "Enter the number of metadata replicas (e.g. 1, 2)." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_METADATA_REPLICAS" \
+		|| return 0
+	PARTITIONING_BCACHEFS_METADATA_REPLICAS="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_DATA_CHECKSUM_tag()   { echo " ├ Data Checksum"; }
+function PARTITIONING_BCACHEFS_DATA_CHECKSUM_label() { echo " ├ ($PARTITIONING_BCACHEFS_DATA_CHECKSUM)"; }
+function PARTITIONING_BCACHEFS_DATA_CHECKSUM_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_DATA_CHECKSUM_help()  { echo "Checksum type for data writes. Options: none, crc32c, crc64."; }
+function PARTITIONING_BCACHEFS_DATA_CHECKSUM_menu()  {
+	if menu_radiolist \
+		"Select data checksum type" \
+		"Select the checksum algorithm for data writes." \
+		"$PARTITIONING_BCACHEFS_DATA_CHECKSUM" \
+		"${PARTITIONING_BCACHEFS_CHECKSUM_TYPES[@]}"
+	then
+		PARTITIONING_BCACHEFS_DATA_CHECKSUM="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BCACHEFS_METADATA_CHECKSUM_tag()   { echo " ├ Metadata Checksum"; }
+function PARTITIONING_BCACHEFS_METADATA_CHECKSUM_label() { echo " ├ ($PARTITIONING_BCACHEFS_METADATA_CHECKSUM)"; }
+function PARTITIONING_BCACHEFS_METADATA_CHECKSUM_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_METADATA_CHECKSUM_help()  { echo "Checksum type for metadata writes. Options: none, crc32c, crc64."; }
+function PARTITIONING_BCACHEFS_METADATA_CHECKSUM_menu()  {
+	if menu_radiolist \
+		"Select metadata checksum type" \
+		"Select the checksum algorithm for metadata writes." \
+		"$PARTITIONING_BCACHEFS_METADATA_CHECKSUM" \
+		"${PARTITIONING_BCACHEFS_CHECKSUM_TYPES[@]}"
+	then
+		PARTITIONING_BCACHEFS_METADATA_CHECKSUM="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BCACHEFS_ERRORS_tag()   { echo " ├ Error Action"; }
+function PARTITIONING_BCACHEFS_ERRORS_label() { echo " ├ ($PARTITIONING_BCACHEFS_ERRORS)"; }
+function PARTITIONING_BCACHEFS_ERRORS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_ERRORS_help()  { echo "Action on filesystem error: continue (log and continue), ro (emergency read-only), panic (halt machine)."; }
+function PARTITIONING_BCACHEFS_ERRORS_menu()  {
+	if menu_radiolist \
+		"Select error action" \
+		"Select the action to take on filesystem errors." \
+		"$PARTITIONING_BCACHEFS_ERRORS" \
+		"${PARTITIONING_BCACHEFS_ERROR_ACTIONS[@]}"
+	then
+		PARTITIONING_BCACHEFS_ERRORS="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BCACHEFS_STR_HASH_tag()   { echo " ├ String Hash"; }
+function PARTITIONING_BCACHEFS_STR_HASH_label() { echo " ├ ($PARTITIONING_BCACHEFS_STR_HASH)"; }
+function PARTITIONING_BCACHEFS_STR_HASH_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_STR_HASH_help()  { echo "Hash function for string hash tables (directories and xattrs). Options: crc32c, crc64, siphash."; }
+function PARTITIONING_BCACHEFS_STR_HASH_menu()  {
+	if menu_radiolist \
+		"Select string hash type" \
+		"Select the hash function for directories and extended attributes." \
+		"$PARTITIONING_BCACHEFS_STR_HASH" \
+		"${PARTITIONING_BCACHEFS_STR_HASH_TYPES[@]}"
+	then
+		PARTITIONING_BCACHEFS_STR_HASH="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		true
+	fi
+}
+
+function PARTITIONING_BCACHEFS_BLOCK_SIZE_tag()   { echo " ├ Block Size"; }
+function PARTITIONING_BCACHEFS_BLOCK_SIZE_label() { echo " ├ ($PARTITIONING_BCACHEFS_BLOCK_SIZE)"; }
+function PARTITIONING_BCACHEFS_BLOCK_SIZE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_BLOCK_SIZE_help()  { echo "Filesystem block size. Format-only: cannot be changed after creation. Default: 4k."; }
+function PARTITIONING_BCACHEFS_BLOCK_SIZE_menu()  {
+	dialog \
+		--title "Block Size" \
+		--inputbox "Enter the filesystem block size (e.g. 4k, 8k, 16k). Cannot be changed after creation." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_BLOCK_SIZE" \
+		|| return 0
+	PARTITIONING_BCACHEFS_BLOCK_SIZE="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_BTREE_NODE_SIZE_tag()   { echo " ├ Btree Node Size"; }
+function PARTITIONING_BCACHEFS_BTREE_NODE_SIZE_label() { echo " ├ ($PARTITIONING_BCACHEFS_BTREE_NODE_SIZE)"; }
+function PARTITIONING_BCACHEFS_BTREE_NODE_SIZE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_BTREE_NODE_SIZE_help()  { echo "Btree node size. Format-only: cannot be changed after creation. Default: 256k."; }
+function PARTITIONING_BCACHEFS_BTREE_NODE_SIZE_menu()  {
+	dialog \
+		--title "Btree Node Size" \
+		--inputbox "Enter the btree node size (e.g. 256k, 512k). Cannot be changed after creation." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_BTREE_NODE_SIZE" \
+		|| return 0
+	PARTITIONING_BCACHEFS_BTREE_NODE_SIZE="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_ERASURE_CODE_tag()   { echo " ├ Erasure Coding"; }
+function PARTITIONING_BCACHEFS_ERASURE_CODE_label() { on_off_label "$PARTITIONING_BCACHEFS_ERASURE_CODE" " ├ "; }
+function PARTITIONING_BCACHEFS_ERASURE_CODE_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_ERASURE_CODE_help()  { echo "Enable erasure coding for the bcachefs filesystem. Requires multiple devices."; }
+function PARTITIONING_BCACHEFS_ERASURE_CODE_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_ERASURE_CODE"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_DISCARD_tag()   { echo " ├ Discard (TRIM)"; }
+function PARTITIONING_BCACHEFS_DISCARD_label() { on_off_label "$PARTITIONING_BCACHEFS_DISCARD" " ├ "; }
+function PARTITIONING_BCACHEFS_DISCARD_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_DISCARD_help()  { echo "Enable discard/TRIM support. Recommended for SSDs."; }
+function PARTITIONING_BCACHEFS_DISCARD_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_DISCARD"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_ACL_tag()   { echo " ├ POSIX ACLs"; }
+function PARTITIONING_BCACHEFS_ACL_label() { on_off_label "$PARTITIONING_BCACHEFS_ACL" " ├ "; }
+function PARTITIONING_BCACHEFS_ACL_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_ACL_help()  { echo "Enable POSIX ACL support on the filesystem."; }
+function PARTITIONING_BCACHEFS_ACL_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_ACL"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_USRQUOTA_tag()   { echo " ├ User Quotas"; }
+function PARTITIONING_BCACHEFS_USRQUOTA_label() { on_off_label "$PARTITIONING_BCACHEFS_USRQUOTA" " ├ "; }
+function PARTITIONING_BCACHEFS_USRQUOTA_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_USRQUOTA_help()  { echo "Enable user quotas on the filesystem."; }
+function PARTITIONING_BCACHEFS_USRQUOTA_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_USRQUOTA"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_GRPQUOTA_tag()   { echo " ├ Group Quotas"; }
+function PARTITIONING_BCACHEFS_GRPQUOTA_label() { on_off_label "$PARTITIONING_BCACHEFS_GRPQUOTA" " ├ "; }
+function PARTITIONING_BCACHEFS_GRPQUOTA_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_GRPQUOTA_help()  { echo "Enable group quotas on the filesystem."; }
+function PARTITIONING_BCACHEFS_GRPQUOTA_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_GRPQUOTA"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_PRJQUOTA_tag()   { echo " ├ Project Quotas"; }
+function PARTITIONING_BCACHEFS_PRJQUOTA_label() { on_off_label "$PARTITIONING_BCACHEFS_PRJQUOTA" " ├ "; }
+function PARTITIONING_BCACHEFS_PRJQUOTA_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_PRJQUOTA_help()  { echo "Enable project quotas on the filesystem."; }
+function PARTITIONING_BCACHEFS_PRJQUOTA_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_PRJQUOTA"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_INLINE_DATA_tag()   { echo " ├ Inline Data"; }
+function PARTITIONING_BCACHEFS_INLINE_DATA_label() { on_off_label "$PARTITIONING_BCACHEFS_INLINE_DATA" " ├ "; }
+function PARTITIONING_BCACHEFS_INLINE_DATA_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_INLINE_DATA_help()  { echo "Enable inline data extents. Small files are stored directly in the inode. Default: on."; }
+function PARTITIONING_BCACHEFS_INLINE_DATA_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_INLINE_DATA"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_INODES_32BIT_tag()   { echo " ├ 32-bit Inodes"; }
+function PARTITIONING_BCACHEFS_INODES_32BIT_label() { on_off_label "$PARTITIONING_BCACHEFS_INODES_32BIT" " ├ "; }
+function PARTITIONING_BCACHEFS_INODES_32BIT_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_INODES_32BIT_help()  { echo "Restrict new inode numbers to 32 bits. May be needed for compatibility with older applications."; }
+function PARTITIONING_BCACHEFS_INODES_32BIT_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_INODES_32BIT"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS_tag()   { echo " ├ Shard Inode Numbers"; }
+function PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS_label() { on_off_label "$PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS" " ├ "; }
+function PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS_help()  { echo "Use CPU id for high bits of new inode numbers. Can improve performance on multi-core systems."; }
+function PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_SHARD_INODE_NUMBERS"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_WIDE_MACS_tag()   { echo " ├ Wide MACs"; }
+function PARTITIONING_BCACHEFS_WIDE_MACS_label() { on_off_label "$PARTITIONING_BCACHEFS_WIDE_MACS" " ├ "; }
+function PARTITIONING_BCACHEFS_WIDE_MACS_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric" && is_on "$PARTITIONING_BCACHEFS_USE_ENCRYPTION"; }
+function PARTITIONING_BCACHEFS_WIDE_MACS_help()  { echo "Store full 128-bit cryptographic MACs instead of the default 80-bit. Only relevant when encryption is enabled."; }
+function PARTITIONING_BCACHEFS_WIDE_MACS_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_WIDE_MACS"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY_tag()   { echo " ├ Journal Flush Delay"; }
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY_label() { echo " ├ (${PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY}ms)"; }
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY_help()  { echo "Delay in milliseconds before automatic journal commit. Default: 1000."; }
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY_menu()  {
+	dialog \
+		--title "Journal Flush Delay" \
+		--inputbox "Enter the journal flush delay in milliseconds (default: 1000)." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY" \
+		|| return 0
+	PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DELAY="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED_tag()   { echo " ├ Journal Flush Disabled"; }
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED_label() { on_off_label "$PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED" " ├ "; }
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED_help()  { echo "Disable journal flush on sync/fsync. The journal_flush_delay still applies, so at most that much work is lost on crash. Useful for workstations/laptops."; }
+function PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED_menu()  {
+	on_off_toggle "PARTITIONING_BCACHEFS_JOURNAL_FLUSH_DISABLED"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY_tag()   { echo " ├ Journal Reclaim Delay"; }
+function PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY_label() { echo " ├ (${PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY}ms)"; }
+function PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY_help()  { echo "Delay in milliseconds before automatic journal reclaim. Default: 100."; }
+function PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY_menu()  {
+	dialog \
+		--title "Journal Reclaim Delay" \
+		--inputbox "Enter the journal reclaim delay in milliseconds (default: 100)." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY" \
+		|| return 0
+	PARTITIONING_BCACHEFS_JOURNAL_RECLAIM_DELAY="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_FOREGROUND_TARGET_tag()   { echo " ├ Foreground Target"; }
+function PARTITIONING_BCACHEFS_FOREGROUND_TARGET_label() { echo " ├ (${PARTITIONING_BCACHEFS_FOREGROUND_TARGET:-default})"; }
+function PARTITIONING_BCACHEFS_FOREGROUND_TARGET_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_FOREGROUND_TARGET_help()  { echo "Preferred device label for foreground writes. Leave empty for default. Devices are labeled dev0, dev1, etc."; }
+function PARTITIONING_BCACHEFS_FOREGROUND_TARGET_menu()  {
+	dialog \
+		--title "Foreground Target" \
+		--inputbox "Enter device label for foreground writes (e.g. dev0). Leave empty for default." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_FOREGROUND_TARGET" \
+		|| return 0
+	PARTITIONING_BCACHEFS_FOREGROUND_TARGET="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_METADATA_TARGET_tag()   { echo " ├ Metadata Target"; }
+function PARTITIONING_BCACHEFS_METADATA_TARGET_label() { echo " ├ (${PARTITIONING_BCACHEFS_METADATA_TARGET:-default})"; }
+function PARTITIONING_BCACHEFS_METADATA_TARGET_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_METADATA_TARGET_help()  { echo "Preferred device label for metadata writes. Leave empty for default. Devices are labeled dev0, dev1, etc."; }
+function PARTITIONING_BCACHEFS_METADATA_TARGET_menu()  {
+	dialog \
+		--title "Metadata Target" \
+		--inputbox "Enter device label for metadata writes (e.g. dev0). Leave empty for default." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_METADATA_TARGET" \
+		|| return 0
+	PARTITIONING_BCACHEFS_METADATA_TARGET="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_BACKGROUND_TARGET_tag()   { echo " ├ Background Target"; }
+function PARTITIONING_BCACHEFS_BACKGROUND_TARGET_label() { echo " ├ (${PARTITIONING_BCACHEFS_BACKGROUND_TARGET:-default})"; }
+function PARTITIONING_BCACHEFS_BACKGROUND_TARGET_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_BACKGROUND_TARGET_help()  { echo "Device label for data to be moved to in the background. Leave empty for default. Devices are labeled dev0, dev1, etc."; }
+function PARTITIONING_BCACHEFS_BACKGROUND_TARGET_menu()  {
+	dialog \
+		--title "Background Target" \
+		--inputbox "Enter device label for background data movement (e.g. dev1). Leave empty for default." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_BACKGROUND_TARGET" \
+		|| return 0
+	PARTITIONING_BCACHEFS_BACKGROUND_TARGET="$dialog_out"
+	UNSAVED_CHANGES=true
+}
+
+function PARTITIONING_BCACHEFS_PROMOTE_TARGET_tag()   { echo " ├ Promote Target"; }
+function PARTITIONING_BCACHEFS_PROMOTE_TARGET_label() { echo " ├ (${PARTITIONING_BCACHEFS_PROMOTE_TARGET:-default})"; }
+function PARTITIONING_BCACHEFS_PROMOTE_TARGET_show()  { [[ $PARTITIONING_SCHEME != "custom" ]] && one_of "$PARTITIONING_SCHEME" "bcachefs_centric"; }
+function PARTITIONING_BCACHEFS_PROMOTE_TARGET_help()  { echo "Device label for data to be copied to on read (promote). Leave empty for default. Devices are labeled dev0, dev1, etc."; }
+function PARTITIONING_BCACHEFS_PROMOTE_TARGET_menu()  {
+	dialog \
+		--title "Promote Target" \
+		--inputbox "Enter device label for read promotion (e.g. dev0). Leave empty for default." \
+		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_BCACHEFS_PROMOTE_TARGET" \
+		|| return 0
+	PARTITIONING_BCACHEFS_PROMOTE_TARGET="$dialog_out"
+	UNSAVED_CHANGES=true
 }
 
 function PARTITIONING_DEVICE_tag()   { echo " └ Device"; }

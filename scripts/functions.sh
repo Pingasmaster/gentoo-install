@@ -521,44 +521,34 @@ function format_zfs_standard() {
 		|| die "Could not set zfs property bootfs on rpool"
 }
 
-# This function creates a bcachefs filesystem, optionally with native encryption and compression.
+# This function creates a bcachefs filesystem with all format-time options.
 # $1: either 'true' or 'false' determining if the filesystem should be encrypted
-# $2: either 'false' or a value determining the compression algorithm
-# $3: a string describing all device paths (for error messages)
-# $@: device paths
+# $2: a string describing all device paths (for error messages)
+# $3: name of array containing extra format arguments
+# $4: name of array containing device paths
 function format_bcachefs_standard() {
 	local encrypt="$1"
-	local compress="$2"
-	local device_desc="$3"
-	shift 3
-	local devices=("$@")
-	local extra_args=()
+	local device_desc="$2"
+	local -n _extra_args="$3"
+	local -n _devices="$4"
 
 	einfo "Creating bcachefs filesystem on $device_desc"
 
 	if [[ "$encrypt" == true ]]; then
-		extra_args+=("--encrypted")
-	fi
-
-	if [[ "$compress" != false ]]; then
-		extra_args+=("--compression=$compress")
-	fi
-
-	if [[ "$encrypt" == true ]]; then
 		echo -n "$GENTOO_INSTALL_ENCRYPTION_KEY" \
-			| bcachefs format "${extra_args[@]}" "${devices[@]}" \
+			| bcachefs format "${_extra_args[@]}" "${_devices[@]}" \
 			|| die "Could not create bcachefs filesystem on $device_desc"
 	else
-		bcachefs format "${extra_args[@]}" "${devices[@]}" \
+		bcachefs format "${_extra_args[@]}" "${_devices[@]}" \
 			|| die "Could not create bcachefs filesystem on $device_desc"
 	fi
 
 	# Mount the bcachefs filesystem
 	local mount_dev
-	mount_dev="$(IFS=:; echo "${devices[*]}")"
+	mount_dev="$(IFS=:; echo "${_devices[*]}")"
 	if [[ "$encrypt" == true ]]; then
 		echo -n "$GENTOO_INSTALL_ENCRYPTION_KEY" \
-			| bcachefs unlock "${devices[0]}"
+			| bcachefs unlock "${_devices[0]}"
 	fi
 	mount -t bcachefs "$mount_dev" "$ROOT_MOUNTPOINT" \
 		|| die "Could not mount bcachefs filesystem on $device_desc"
@@ -682,7 +672,60 @@ function disk_format_bcachefs() {
 	wipefs --quiet --all --force "${devices[@]}" \
 		|| die "Could not erase previous file system signatures from $devices_desc"
 
-	format_bcachefs_standard "$encrypt" "$compress" "$devices_desc" "${devices[@]}"
+	# Build extra_args from all bcachefs format options
+	local extra_args=()
+	[[ "$encrypt" == true ]] && extra_args+=("--encrypted")
+	[[ "$compress" != false ]] && extra_args+=("--compression=$compress")
+
+	# Value options — only add if non-default
+	local val
+	local arg_key fmt_key default
+	for opt_pair in \
+		"bg_compress:background_compression:none" \
+		"errors:errors:continue" \
+		"data_checksum:data_checksum:crc32c" \
+		"metadata_checksum:metadata_checksum:crc32c" \
+		"str_hash:str_hash:siphash" \
+		"block_size:block_size:4k" \
+		"btree_node_size:btree_node_size:256k" \
+		"data_replicas:data_replicas:1" \
+		"metadata_replicas:metadata_replicas:1" \
+		"journal_flush_delay:journal_flush_delay:1000" \
+		"journal_reclaim_delay:journal_reclaim_delay:100"
+	do
+		IFS=: read -r arg_key fmt_key default <<< "$opt_pair"
+		val="${arguments[$arg_key]-$default}"
+		[[ "$val" != "$default" ]] && extra_args+=("--${fmt_key}=${val}")
+	done
+
+	# Boolean options — only add if enabled
+	local fmt_key
+	for opt_pair in \
+		"journal_flush_disabled:journal_flush_disabled" \
+		"erasure_code:erasure_code" \
+		"inodes_32bit:inodes_32bit" \
+		"shard_inode_numbers:shard_inode_numbers" \
+		"wide_macs:wide_macs" \
+		"acl:acl" \
+		"usrquota:usrquota" \
+		"grpquota:grpquota" \
+		"prjquota:prjquota" \
+		"discard:discard"
+	do
+		IFS=: read -r arg_key fmt_key <<< "$opt_pair"
+		[[ "${arguments[$arg_key]-false}" == "true" ]] && extra_args+=("--${fmt_key}")
+	done
+
+	# inline_data defaults to true — only pass flag if disabled
+	[[ "${arguments[inline_data]-true}" == "false" ]] && extra_args+=("--inline_data=false")
+
+	# Target options — only add if non-empty
+	for target in foreground_target metadata_target background_target promote_target; do
+		val="${arguments[$target]-}"
+		[[ -n "$val" ]] && extra_args+=("--${target}=${val}")
+	done
+
+	format_bcachefs_standard "$encrypt" "$devices_desc" extra_args devices
 }
 
 function apply_disk_action() {

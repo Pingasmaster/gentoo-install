@@ -130,8 +130,37 @@ function disk_configuration() {
 	#                                       Cannot be combined with encrypt=true.
 	#   compress=[false|<compression>]      Compress the bcachefs filesystem (zstd, lz4, gzip).
 	#                                       Defaults to false if not given.
+	#
+	# Advanced bcachefs options (all optional, shown with defaults):
+	#   bg_compress=[none|lz4|gzip|zstd]       Background compression algorithm (default: none)
+	#   errors=[continue|ro|panic]             Error action (default: continue)
+	#   data_checksum=[none|crc32c|crc64]      Data checksum type (default: crc32c)
+	#   metadata_checksum=[none|crc32c|crc64]  Metadata checksum type (default: crc32c)
+	#   str_hash=[crc32c|crc64|siphash]        String hash function (default: siphash)
+	#   block_size=<size>                      Block size, format-only (default: 4k)
+	#   btree_node_size=<size>                 Btree node size, format-only (default: 256k)
+	#   data_replicas=<N>                      Data replicas (default: 1)
+	#   metadata_replicas=<N>                  Metadata replicas (default: 1)
+	#   erasure_code=[true|false]              Erasure coding (default: false)
+	#   discard=[true|false]                   TRIM/discard support (default: false)
+	#   acl=[true|false]                       POSIX ACLs (default: false)
+	#   usrquota=[true|false]                  User quotas (default: false)
+	#   grpquota=[true|false]                  Group quotas (default: false)
+	#   prjquota=[true|false]                  Project quotas (default: false)
+	#   inline_data=[true|false]               Inline data extents (default: true)
+	#   inodes_32bit=[true|false]              32-bit inodes (default: false)
+	#   shard_inode_numbers=[true|false]        Shard inode numbers (default: false)
+	#   wide_macs=[true|false]                 128-bit MACs, encrypted only (default: false)
+	#   journal_flush_delay=<ms>               Journal flush delay in ms (default: 1000)
+	#   journal_flush_disabled=[true|false]    Disable journal flush on sync (default: false)
+	#   journal_reclaim_delay=<ms>             Journal reclaim delay in ms (default: 100)
+	#   foreground_target=<label>              Foreground write target device label
+	#   metadata_target=<label>                Metadata write target device label
+	#   background_target=<label>              Background data target device label
+	#   promote_target=<label>                 Read promotion target device label
 	#create_bcachefs_centric_layout swap=8GiB type=efi encrypt=true compress=zstd /dev/sdX
 	#create_bcachefs_centric_layout swap=8GiB type=efi luks=true compress=false /dev/sd{X,Y}
+	#create_bcachefs_centric_layout swap=8GiB type=efi compress=zstd bg_compress=zstd data_replicas=2 discard=true acl=true /dev/sd{X,Y}
 }
 
 
