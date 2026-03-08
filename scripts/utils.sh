@@ -405,6 +405,8 @@ function check_wanted_programs() {
 		declare -A pacman_packages
 		pacman_packages=(
 			[chrony]=chrony
+			[mkfs.fat]=dosfstools
+			[sgdisk]=gptfdisk
 			[zfs]=""
 		)
 		elog "Detected pacman package manager."
@@ -447,6 +449,9 @@ function check_wanted_programs() {
 				if [[ "$program" == "chrony" ]]; then
 					elog "Installing chrony using emerge..."
 					emerge --ask net-misc/chrony || die "Failed to install chrony."
+				elif [[ "$program" == "sgdisk" ]]; then
+					elog "Installing gptfdisk using emerge..."
+					emerge --ask sys-apps/gptfdisk || die "Failed to install gptfdisk."
 				else
 					elog "You need to manually install $program."
 				fi

@@ -97,6 +97,7 @@ function prepare_installation_environment() {
 		python3
 		"?rhash"
 		sha512sum
+		mkfs.fat
 		sgdisk
 		uuidgen
 		wget
@@ -574,6 +575,8 @@ function format_bcachefs_standard() {
 		echo -n "$GENTOO_INSTALL_ENCRYPTION_KEY" \
 			| bcachefs unlock "${_devices[0]}"
 	fi
+	mkdir -p "$ROOT_MOUNTPOINT" \
+		|| die "Could not create mountpoint directory '$ROOT_MOUNTPOINT'"
 	mount -t bcachefs "$mount_dev" "$ROOT_MOUNTPOINT" \
 		|| die "Could not mount bcachefs filesystem on $device_desc"
 }
@@ -1023,6 +1026,8 @@ function mount_root() {
 			done
 			local mount_dev
 			mount_dev="$(IFS=:; echo "${bcachefs_devs[*]}")"
+			mkdir -p "$ROOT_MOUNTPOINT" \
+				|| die "Could not create mountpoint directory '$ROOT_MOUNTPOINT'"
 			mount -t bcachefs "$mount_dev" "$ROOT_MOUNTPOINT" \
 				|| die "Could not mount bcachefs filesystem"
 		fi
