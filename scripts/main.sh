@@ -103,11 +103,41 @@ function configure_portage() {
 		try mirrorselect "${mirrorselect_params[@]}"
 	fi
 
-	# Set MAKEOPTS for parallel builds
-	local nproc
+	# Set MAKEOPTS for parallel builds (RAM-aware: 2 GiB per thread)
+	local nproc mem_kb mem_gib max_jobs
 	nproc="$(nproc || echo 2)"
-	einfo "Setting MAKEOPTS=\"-j${nproc}\" in make.conf"
-	echo "MAKEOPTS=\"-j${nproc}\"" >> /etc/portage/make.conf
+	mem_kb=$(awk '/^MemTotal:/ { print $2 }' /proc/meminfo 2>/dev/null) || mem_kb=0
+	mem_gib=$(( (mem_kb + 524288) / 1048576 ))
+	max_jobs=$(( mem_gib / 2 ))
+	[[ $max_jobs -lt 1 ]] && max_jobs=1
+	[[ $max_jobs -gt $nproc ]] && max_jobs=$nproc
+	einfo "Setting MAKEOPTS=\"-j${max_jobs} -l${nproc}\" in make.conf"
+	echo "MAKEOPTS=\"-j${max_jobs} -l${nproc}\"" >> /etc/portage/make.conf
+
+	# Set CPU_FLAGS_X86 for optimized package builds (x86/amd64 only)
+	local arch
+	arch="$(uname -m 2>/dev/null)" || arch=""
+	if [[ "$arch" == x86_64 || "$arch" == i?86 ]]; then
+		einfo "Detecting CPU flags via cpuid2cpuflags"
+		try emerge --verbose --oneshot app-portage/cpuid2cpuflags
+
+		if command -v cpuid2cpuflags &>/dev/null; then
+			local cpu_flags
+			cpu_flags="$(cpuid2cpuflags 2>/dev/null)" || cpu_flags=""
+			if [[ -n "$cpu_flags" ]]; then
+				einfo "Setting $cpu_flags"
+				echo "*/* $cpu_flags" > /etc/portage/package.use/00cpu-flags \
+					|| die "Could not write /etc/portage/package.use/00cpu-flags"
+				chmod 644 /etc/portage/package.use/00cpu-flags \
+					|| die "Could not chmod /etc/portage/package.use/00cpu-flags"
+			else
+				ewarn "cpuid2cpuflags produced no output, skipping CPU_FLAGS_X86"
+			fi
+			einfo "Cleaning up cpuid2cpuflags"
+			emerge --depclean app-portage/cpuid2cpuflags \
+				|| ewarn "Could not depclean cpuid2cpuflags (non-fatal)"
+		fi
+	fi
 
 	if [[ $ENABLE_BINPKG == "true" ]]; then
 		echo 'FEATURES="getbinpkg binpkg-request-signature"' >> /etc/portage/make.conf

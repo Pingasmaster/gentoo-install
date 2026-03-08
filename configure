@@ -278,6 +278,50 @@ function compute_default_swap() {
 	fi
 }
 DEFAULT_SWAP_SIZE="$(compute_default_swap)"
+PARTITIONING_SWAP_IS_DEFAULT=true
+
+# Get device size in GiB (returns 0 on failure)
+function get_device_size_gib() {
+	local dev="$1"
+	local bytes
+	bytes=$(blockdev --getsize64 "$dev" 2>/dev/null) || { echo 0; return; }
+	echo $(( bytes / 1073741824 ))
+}
+
+# Recompute default swap capped to 1/4 of the smallest selected device
+function cap_swap_to_device() {
+	[[ "$PARTITIONING_SWAP_IS_DEFAULT" == "true" ]] || return 0
+	is_on "$PARTITIONING_USE_SWAP" || return 0
+
+	local devices=()
+	if [[ -v PARTITIONING_DEVICES && ${#PARTITIONING_DEVICES[@]} -gt 0 ]]; then
+		devices=("${PARTITIONING_DEVICES[@]}")
+	elif [[ -v PARTITIONING_DEVICE ]]; then
+		devices=("$PARTITIONING_DEVICE")
+	fi
+
+	# Find smallest device
+	local min_size=0
+	for dev in "${devices[@]}"; do
+		[[ -e "$dev" ]] || continue
+		local size
+		size=$(get_device_size_gib "$dev")
+		if [[ "$size" -gt 0 && ( "$min_size" -eq 0 || "$size" -lt "$min_size" ) ]]; then
+			min_size=$size
+		fi
+	done
+
+	[[ "$min_size" -gt 0 ]] || return 0
+
+	local quarter=$(( min_size / 4 ))
+	[[ $quarter -lt 1 ]] && quarter=1
+
+	# Cap swap if it exceeds 1/4 of device
+	local current_swap="${PARTITIONING_SWAP%GiB}"
+	if [[ "$current_swap" -gt "$quarter" ]]; then
+		PARTITIONING_SWAP="${quarter}GiB"
+	fi
+}
 
 PORTAGE_SYNC_TYPES=("git" "rsync")
 KERNEL_TYPES=(
@@ -293,9 +337,11 @@ function parse_swap() {
 	if [[ $1 == "false" ]]; then
 		PARTITIONING_USE_SWAP=false
 		PARTITIONING_SWAP="$DEFAULT_SWAP_SIZE"
+		PARTITIONING_SWAP_IS_DEFAULT=true
 	else
 		PARTITIONING_USE_SWAP=true
 		PARTITIONING_SWAP="$1"
+		PARTITIONING_SWAP_IS_DEFAULT=false
 	fi
 }
 
@@ -1304,6 +1350,7 @@ function PARTITIONING_SWAP_menu()  {
 		"${INPUTBOX_SIZE[@]}" "$PARTITIONING_SWAP" \
 		|| return 0
 	PARTITIONING_SWAP="$dialog_out"
+	PARTITIONING_SWAP_IS_DEFAULT=false
 	UNSAVED_CHANGES=true
 }
 
@@ -2356,6 +2403,7 @@ function PARTITIONING_DEVICE_menu()  {
 		"$PARTITIONING_DEVICE"
 	then
 		PARTITIONING_DEVICE="$dialog_out"
+		cap_swap_to_device
 		UNSAVED_CHANGES=true
 	else
 		# Return to menu
@@ -2401,6 +2449,7 @@ function PARTITIONING_DEVICES_menu()  {
 		"${INPUTBOX_SIZE[@]}" "${PARTITIONING_DEVICES[*]}" \
 		|| return 0
 	read -ra PARTITIONING_DEVICES <<< "$dialog_out"
+	cap_swap_to_device
 	UNSAVED_CHANGES=true
 }
 
