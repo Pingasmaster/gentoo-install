@@ -138,7 +138,7 @@ function get_blkid_field_by_device() {
 function get_blkid_uuid_for_id() {
 	local dev
 	dev="$(resolve_device_by_id "$1")" \
-		|| die "Could not resolve device with id=$dev"
+		|| die "Could not resolve device with id=$1"
 	local uuid
 	uuid="$(get_blkid_field_by_device 'UUID' "$dev")" \
 		|| die "Could not get UUID from blkid for device=$dev"

@@ -213,7 +213,7 @@ function disk_create_gpt() {
 	local device_desc=""
 	if [[ -v arguments[id] ]]; then
 		device="$(resolve_device_by_id "${arguments[id]}")"
-		device_desc="$device ($id)"
+		device_desc="$device (${arguments[id]})"
 	else
 		device="${arguments[device]}"
 		device_desc="$device"
@@ -313,7 +313,7 @@ function disk_create_raid() {
 	local mddevice="/dev/md/$name"
 	local uuid="${DISK_ID_TO_UUID[$new_id]}"
 
-	extra_args=()
+	local extra_args=()
 	if [[ "$level" == 1 && "$name" == "efi" ]]; then
 		extra_args+=("--metadata=1.0")
 	else
@@ -350,7 +350,7 @@ function disk_create_luks() {
 	local device_desc=""
 	if [[ -v arguments[id] ]]; then
 		device="$(resolve_device_by_id "${arguments[id]}")"
-		device_desc="$device ($id)"
+		device_desc="$device (${arguments[id]})"
 	else
 		device="${arguments[device]}"
 		device_desc="$device"
@@ -373,7 +373,7 @@ function disk_create_luks() {
 		|| die "Could not create luks on $device_desc"
 	mkdir -p "$LUKS_HEADER_BACKUP_DIR" \
 		|| die "Could not create luks header backup dir '$LUKS_HEADER_BACKUP_DIR'"
-	local header_file="$LUKS_HEADER_BACKUP_DIR/luks-header-$id-${uuid,,}.img"
+	local header_file="$LUKS_HEADER_BACKUP_DIR/luks-header-$new_id-${uuid,,}.img"
 	[[ ! -e $header_file ]] \
 		|| rm "$header_file" \
 		|| die "Could not remove old luks header backup file '$header_file'"
@@ -687,7 +687,7 @@ function disk_format_btrfs() {
 		|| die "Could not erase previous file system signatures from $devices_desc"
 
 	# Collect extra arguments
-	extra_args=()
+	local extra_args=()
 	if [[ "${#devices[@]}" -gt 1 ]] && [[ -v "arguments[raid_type]" ]]; then
 		extra_args+=("-d" "$raid_type")
 	fi
@@ -1101,7 +1101,7 @@ function download_stage3() {
 		# Check hashes
 		einfo "Verifying tarball integrity"
 		# Replace any absolute paths in the digest file with just the stage3 basename, so it will be found by rhash
-		digest_line=$(grep 'tar.xz$' "${CURRENT_STAGE3}.DIGESTS" | sed -e 's/  .*stage3-/  stage3-/')
+		digest_line=$(sed -n '/^# SHA512/,/^$/p' "${CURRENT_STAGE3}.DIGESTS" | grep 'tar.xz$' | sed -e 's/  .*stage3-/  stage3-/')
 		if type rhash &>/dev/null; then
 			rhash -P --check <(echo "# SHA512"; echo "$digest_line") \
 				|| die "Checksum mismatch!"
@@ -1227,8 +1227,9 @@ function gentoo_chroot() {
 	EXECUTED_IN_CHROOT=true \
 		TMP_DIR="$TMP_DIR" \
 		CACHED_LSBLK_OUTPUT="$CACHED_LSBLK_OUTPUT" \
-		exec chroot -- "$chroot_dir" "$GENTOO_INSTALL_REPO_DIR/scripts/dispatch_chroot.sh" "$@" \
-			|| die "Failed to chroot into '$chroot_dir'."
+		exec chroot -- "$chroot_dir" "$GENTOO_INSTALL_REPO_DIR/scripts/dispatch_chroot.sh" "$@"
+	# exec only returns if it fails to find/execute the binary
+	die "Failed to chroot into '$chroot_dir'."
 }
 
 function enable_service() {

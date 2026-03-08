@@ -271,7 +271,7 @@ function format_zfs() {
 
 	verify_existing_unique_ids ids
 
-	USED_ENCRYPTION=${arguments[encrypt]:-false}
+	[[ "${arguments[encrypt]:-false}" == "true" ]] && USED_ENCRYPTION=true
 	DISK_ACTIONS+=("action=format_zfs" "$@" ";")
 }
 
@@ -312,7 +312,7 @@ function format_bcachefs() {
 
 	verify_existing_unique_ids ids
 
-	USED_ENCRYPTION=${arguments[encrypt]:-false}
+	[[ "${arguments[encrypt]:-false}" == "true" ]] && USED_ENCRYPTION=true
 	DISK_ACTIONS+=("action=format_bcachefs" "$@" ";")
 }
 
@@ -536,8 +536,8 @@ function create_raid0_luks_layout() {
 	done
 
 	[[ $size_swap != "false" ]] \
-		&& create_raid new_id=part_raid_swap name="swap" level=0 ids="$(expand_ids '^part_swap_dev[[:digit:]]$')"
-	create_raid new_id=part_raid_root name="root" level=0 ids="$(expand_ids '^part_root_dev[[:digit:]]$')"
+		&& create_raid new_id=part_raid_swap name="swap" level=0 ids="$(expand_ids '^part_swap_dev[[:digit:]]+$')"
+	create_raid new_id=part_raid_root name="root" level=0 ids="$(expand_ids '^part_root_dev[[:digit:]]+$')"
 
 	local root_id="part_raid_root"
 	if [[ "$use_luks" == "true" ]]; then
@@ -602,10 +602,10 @@ function create_raid1_luks_layout() {
 		create_partition new_id="part_root_dev${i}"    id="gpt_dev${i}" size=remaining    type=raid
 	done
 
-	create_raid new_id="part_raid_${type}" name="$type" level=1 ids="$(expand_ids "^part_${type}_dev[[:digit:]]$")"
+	create_raid new_id="part_raid_${type}" name="$type" level=1 ids="$(expand_ids "^part_${type}_dev[[:digit:]]+$")"
 	[[ $size_swap != "false" ]] \
-		&& create_raid new_id=part_raid_swap name="swap" level=1 ids="$(expand_ids '^part_swap_dev[[:digit:]]$')"
-	create_raid new_id=part_raid_root name="root" level=1 ids="$(expand_ids '^part_root_dev[[:digit:]]$')"
+		&& create_raid new_id=part_raid_swap name="swap" level=1 ids="$(expand_ids '^part_swap_dev[[:digit:]]+$')"
+	create_raid new_id=part_raid_root name="root" level=1 ids="$(expand_ids '^part_root_dev[[:digit:]]+$')"
 
 	local root_id="part_raid_root"
 	if [[ "$use_luks" == "true" ]]; then

@@ -178,7 +178,7 @@ function define_disk_layout() {
 	case "$PARTITIONING_SCHEME" in
 		"classic_single_disk") define_disk_configuration_function "create_classic_single_disk_layout swap=$(define_swap) type=${PARTITIONING_BOOT_TYPE@Q} luks=${PARTITIONING_USE_LUKS@Q} root_fs=${PARTITIONING_ROOT_FS@Q}" "${PARTITIONING_DEVICE@Q}" ;;
 		"existing_partitions")
-			if [[ "$PARTITIONING_USE_SWAP" ]]; then
+			if [[ "$PARTITIONING_USE_SWAP" == "true" ]]; then
 				swapdev=${PARTITIONING_SWAP_DEVICE:-false}
 			else
 				swapdev=false
@@ -2865,7 +2865,9 @@ EOF
 
 	dialog \
 		--title "Enter authorized keys" \
-		--editbox "$tmpfile" "${EDITTEXT_SIZE[@]}"
+		--editbox "$tmpfile" "${EDITTEXT_SIZE[@]}" \
+		|| { rm -f "$tmpfile"; return 0; }
+	rm -f "$tmpfile"
 	ROOT_SSH_AUTHORIZED_KEYS="$(sed '/^\s*#/d;/^\s*$/d' <<< "$dialog_out")"
 	UNSAVED_CHANGES=true
 }
@@ -2878,7 +2880,8 @@ function ADDITIONAL_PACKAGES_menu()  {
 	dialog \
 		--title "Additional packages" \
 		--inputbox "Enter additional packages (portage package ATOMs) to install. Delimited by space." \
-		"${INPUTBOX_SIZE[@]}" "${ADDITIONAL_PACKAGES[*]}"
+		"${INPUTBOX_SIZE[@]}" "${ADDITIONAL_PACKAGES[*]}" \
+		|| return 0
 	# shellcheck disable=SC2206
 	ADDITIONAL_PACKAGES=($dialog_out)
 	UNSAVED_CHANGES=true
@@ -2919,7 +2922,7 @@ LOCALE=${LOCALE@Q}
 SYSTEMD_NETWORKD=${SYSTEMD_NETWORKD@Q}
 SYSTEMD_NETWORKD_INTERFACE_NAME=${SYSTEMD_NETWORKD_INTERFACE_NAME@Q}
 SYSTEMD_NETWORKD_DHCP=${SYSTEMD_NETWORKD_DHCP@Q}
-SYSTEMD_NETWORKD_ADDRESSES=${SYSTEMD_NETWORKD_ADDRESSES@Q}
+SYSTEMD_NETWORKD_ADDRESSES=(${SYSTEMD_NETWORKD_ADDRESSES[@]@Q})
 SYSTEMD_NETWORKD_GATEWAY=${SYSTEMD_NETWORKD_GATEWAY@Q}
 SYSTEMD_INITRAMFS_SSHD=${SYSTEMD_INITRAMFS_SSHD@Q}
 
