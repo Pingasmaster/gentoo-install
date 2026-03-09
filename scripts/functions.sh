@@ -271,9 +271,10 @@ function disk_create_partition() {
 	local new_device
 	new_device="$(resolve_device_by_id "$new_id")" \
 		|| die "Could not resolve new device with id=$new_id"
+	local waiting_printed=false
 	for i in {1..10}; do
-		[[ -e "$new_device" ]] && break
-		[[ "$i" -eq 1 ]] && printf "Waiting for partition (%s) to appear..." "$new_device"
+		[[ -e "$new_device" ]] && { [[ $waiting_printed == true ]] && echo; break; }
+		[[ "$i" -eq 1 ]] && { printf "Waiting for partition (%s) to appear..." "$new_device"; waiting_printed=true; }
 		printf " %s" "$((10 - i + 1))"
 		sleep 1
 		[[ "$i" -eq 10 ]] && echo
@@ -571,14 +572,16 @@ function format_bcachefs_standard() {
 	# Mount the bcachefs filesystem
 	local mount_dev
 	mount_dev="$(IFS=:; echo "${_devices[*]}")"
-	if [[ "$encrypt" == true ]]; then
-		echo -n "$GENTOO_INSTALL_ENCRYPTION_KEY" \
-			| bcachefs unlock "${_devices[0]}"
-	fi
 	mkdir -p "$ROOT_MOUNTPOINT" \
 		|| die "Could not create mountpoint directory '$ROOT_MOUNTPOINT'"
-	mount -t bcachefs "$mount_dev" "$ROOT_MOUNTPOINT" \
-		|| die "Could not mount bcachefs filesystem on $device_desc"
+	if [[ "$encrypt" == true ]]; then
+		echo -n "$GENTOO_INSTALL_ENCRYPTION_KEY" \
+			| bcachefs mount "$mount_dev" "$ROOT_MOUNTPOINT" \
+			|| die "Could not mount bcachefs filesystem on $device_desc"
+	else
+		mount -t bcachefs "$mount_dev" "$ROOT_MOUNTPOINT" \
+			|| die "Could not mount bcachefs filesystem on $device_desc"
+	fi
 }
 
 function disk_format_zfs() {
@@ -1028,8 +1031,14 @@ function mount_root() {
 			mount_dev="$(IFS=:; echo "${bcachefs_devs[*]}")"
 			mkdir -p "$ROOT_MOUNTPOINT" \
 				|| die "Could not create mountpoint directory '$ROOT_MOUNTPOINT'"
-			mount -t bcachefs "$mount_dev" "$ROOT_MOUNTPOINT" \
-				|| die "Could not mount bcachefs filesystem"
+			if [[ $USED_ENCRYPTION == "true" && $USED_LUKS != "true" ]]; then
+				echo -n "$GENTOO_INSTALL_ENCRYPTION_KEY" \
+					| bcachefs mount "$mount_dev" "$ROOT_MOUNTPOINT" \
+					|| die "Could not mount bcachefs filesystem"
+			else
+				mount -t bcachefs "$mount_dev" "$ROOT_MOUNTPOINT" \
+					|| die "Could not mount bcachefs filesystem"
+			fi
 		fi
 	else
 		mount_by_id "$DISK_ID_ROOT" "$ROOT_MOUNTPOINT"
@@ -1181,7 +1190,8 @@ function mkdir_or_die() {
 function touch_or_die() {
 	touch "$2" \
 		|| die "Could not touch '$2'"
-	chmod "$1" "$2"
+	chmod "$1" "$2" \
+		|| die "Could not chmod '$2'"
 }
 
 # $1: root directory

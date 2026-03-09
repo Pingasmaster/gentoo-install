@@ -312,12 +312,25 @@ function install_kernel_efi() {
 	fi
 
 	# Create script to repeat adding efibootmgr entry
-	cat > "/boot/efi/efibootmgr_add_entry.sh" <<EOF
+	if [[ -v raid_members && ${#raid_members[@]} -gt 0 ]]; then
+		cat > "/boot/efi/efibootmgr_add_entry.sh" <<'HEADER'
+#!/bin/bash
+# These are the commands that were used to create the efibootmgr entries when the
+# system was installed using gentoo-install.
+HEADER
+		for disk in "${raid_members[@]}"; do
+			cat >> "/boot/efi/efibootmgr_add_entry.sh" <<EOF
+efibootmgr --verbose --create --disk "$disk" --part "$efipartnum" --label "gentoo" --loader '\\vmlinuz.efi' --unicode 'initrd=\\initramfs.img'" $(get_cmdline)"
+EOF
+		done
+	else
+		cat > "/boot/efi/efibootmgr_add_entry.sh" <<EOF
 #!/bin/bash
 # This is the command that was used to create the efibootmgr entry when the
 # system was installed using gentoo-install.
 efibootmgr --verbose --create --disk "$gptdev" --part "$efipartnum" --label "gentoo" --loader '\\vmlinuz.efi' --unicode 'initrd=\\initramfs.img'" $(get_cmdline)"
 EOF
+	fi
 }
 
 function generate_syslinux_cfg() {

@@ -73,7 +73,7 @@ while [[ $# -gt 0 ]]; do
 		"-c"|"--config")
 			[[ -f "$2" ]] \
 				|| die "Config file not found: '$2'"
-			CONFIG="$(cd "$ACTUAL_WORKING_DIRECTORY" && realpath --relative-to="$GENTOO_INSTALL_REPO_DIR" "$2" 2>/dev/null)" || die "Could not determine realpath to config"
+			CONFIG="$(cd "$ACTUAL_WORKING_DIRECTORY" && realpath "$2" 2>/dev/null)" || die "Could not determine realpath to config"
 			shift
 			;;
 		"-R"|"--chroot")
@@ -81,7 +81,9 @@ while [[ $# -gt 0 ]]; do
 			ACTION="chroot"
 			CHROOT_DIR="$2"
 			[[ -e "$CHROOT_DIR" ]] || die "Chroot directory not found: '$CHROOT_DIR'"
-			shift
+			shift # past -R flag
+			shift # past DIR
+			break # remaining args are CMD for chroot
 			;;
 		"-i"|"--install")
 			[[ -z $ACTION ]] || die "Multiple actions given"
