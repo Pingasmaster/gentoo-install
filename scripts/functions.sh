@@ -279,6 +279,8 @@ function disk_create_partition() {
 		sleep 1
 		[[ "$i" -eq 10 ]] && echo
 	done
+	[[ -e "$new_device" ]] \
+		|| die "Partition device node ($new_device) did not appear within 10 seconds for partition ($new_id)"
 }
 
 function disk_create_raid() {
@@ -694,7 +696,7 @@ function disk_format_btrfs() {
 
 	# Collect extra arguments
 	local extra_args=()
-	if [[ "${#devices[@]}" -gt 1 ]] && [[ -v "arguments[raid_type]" ]]; then
+	if [[ -v "arguments[raid_type]" ]]; then
 		extra_args+=("-d" "$raid_type")
 	fi
 

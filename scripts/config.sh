@@ -153,7 +153,10 @@ function create_partition() {
 
 	create_new_id new_id
 	verify_existing_id id
-	verify_option type bios efi swap raid luks linux
+	local type_val="${arguments[type]}"
+	if ! [[ "$type_val" =~ ^(bios|efi|swap|raid|luks|linux|[0-9a-fA-F]{4})$ ]]; then
+		die_trace 1 "Invalid option type='$type_val', must be one of (bios, efi, swap, raid, luks, linux) or a 4-digit hex code for gdisk"
+	fi
 
 	[[ -v "DISK_GPT_HAD_SIZE_REMAINING[${arguments[id]}]" ]] \
 		&& die_trace 1 "Cannot add another partition to table (${arguments[id]}) after size=remaining was used"

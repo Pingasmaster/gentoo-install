@@ -71,6 +71,7 @@ while [[ $# -gt 0 ]]; do
 			exit 0
 			;;
 		"-c"|"--config")
+			[[ $# -ge 2 ]] || die "--config requires an argument"
 			[[ -f "$2" ]] \
 				|| die "Config file not found: '$2'"
 			CONFIG="$(cd "$ACTUAL_WORKING_DIRECTORY" && realpath "$2" 2>/dev/null)" || die "Could not determine realpath to config"
@@ -79,6 +80,7 @@ while [[ $# -gt 0 ]]; do
 		"-R"|"--chroot")
 			[[ -z $ACTION ]] || die "Multiple actions given"
 			ACTION="chroot"
+			[[ $# -ge 2 ]] || die "--chroot requires a directory argument"
 			CHROOT_DIR="$2"
 			[[ -e "$CHROOT_DIR" ]] || die "Chroot directory not found: '$CHROOT_DIR'"
 			shift # past -R flag

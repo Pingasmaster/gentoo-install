@@ -141,8 +141,14 @@ function configure_portage() {
 
 	if [[ $ENABLE_BINPKG == "true" ]]; then
 		echo 'FEATURES="getbinpkg binpkg-request-signature"' >> /etc/portage/make.conf
-		getuto
-		chmod 644 /etc/portage/gnupg/pubring.kbx
+
+		# Set up binary package verification keys
+		einfo "Setting up binary package verification"
+		try emerge --verbose sec-keys/openpgp-keys-gentoo-release
+		[[ -d /etc/portage/gnupg ]] || mkdir_or_die 0700 "/etc/portage/gnupg"
+		try gpg --homedir /etc/portage/gnupg --import /usr/share/openpgp-keys/gentoo-release.asc
+		chmod 644 /etc/portage/gnupg/pubring.kbx \
+			|| die "Could not chmod /etc/portage/gnupg/pubring.kbx"
 	fi
 
 	chmod 644 /etc/portage/make.conf \
@@ -284,7 +290,7 @@ function install_kernel_efi() {
 
 	# Identify the parent block device and create EFI boot entry
 	local gptdev
-	if mdadm --detail --scan "$efipartdev" | grep -qE "^ARRAY $efipartdev " && [[ "$efipartdev" =~ ^/dev/md[0-9]+$ ]]; then
+	if mdadm --detail "$efipartdev" &>/dev/null; then
 		# RAID 1 case: Create EFI boot entries for each RAID member
 		local raid_members
 		raid_members=($(mdadm --detail "$efipartdev" | sed -n 's|.*active sync[^/]*\(/dev/[^ ]*\).*|\1|p' | sort))
@@ -373,9 +379,24 @@ function install_kernel_bios() {
 	# Install syslinux MBR record
 	einfo "Copying syslinux MBR record"
 	local gptdev
-	gptdev="$(resolve_device_by_id "${DISK_ID_PART_TO_GPT_ID[$DISK_ID_BIOS]}")" \
-		|| die "Could not resolve device with id=${DISK_ID_PART_TO_GPT_ID[$DISK_ID_BIOS]}"
-	try dd bs=440 conv=notrunc count=1 if=/usr/share/syslinux/gptmbr.bin of="$gptdev"
+	if mdadm --detail "$biosdev" &>/dev/null; then
+		# RAID case: install MBR to each member's parent disk
+		local raid_members
+		raid_members=($(mdadm --detail "$biosdev" | sed -n 's|.*active sync[^/]*\(/dev/[^ ]*\).*|\1|p' | sort))
+		[[ ${#raid_members[@]} -gt 0 ]] \
+			|| die "RAID setup detected, but no valid member disks found for $biosdev"
+		einfo "RAID detected. RAID members: ${raid_members[*]}"
+		for member in "${raid_members[@]}"; do
+			local parent_disk="/dev/$(lsblk -no PKNAME "$member" | head -1)" \
+				|| die "Could not determine parent disk for RAID member $member"
+			einfo "Installing syslinux MBR to RAID member parent disk: $parent_disk"
+			try dd bs=440 conv=notrunc count=1 if=/usr/share/syslinux/gptmbr.bin of="$parent_disk"
+		done
+	else
+		gptdev="$(resolve_device_by_id "${DISK_ID_PART_TO_GPT_ID[$DISK_ID_BIOS]}")" \
+			|| die "Could not resolve device with id=${DISK_ID_PART_TO_GPT_ID[$DISK_ID_BIOS]}"
+		try dd bs=440 conv=notrunc count=1 if=/usr/share/syslinux/gptmbr.bin of="$gptdev"
+	fi
 }
 
 function install_kernel() {
