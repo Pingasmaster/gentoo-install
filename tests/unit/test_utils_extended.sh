@@ -101,6 +101,7 @@ assert_eq "opt" "${arguments[optional]}"
 test_begin "parse_arguments: multiple extra positional"
 unset arguments; declare -A arguments
 extra_arguments=()
+known_arguments=()
 parse_arguments "key=val" "/dev/sda" "/dev/sdb" "/dev/sdc"
 assert_eq "val" "${arguments[key]}"
 assert_eq 3 "${#extra_arguments[@]}" "should have 3 positional args"
@@ -111,18 +112,21 @@ assert_eq "/dev/sdc" "${extra_arguments[2]}"
 test_begin "parse_arguments: empty value is valid"
 unset arguments; declare -A arguments
 extra_arguments=()
+known_arguments=()
 parse_arguments "key="
 assert_eq "" "${arguments[key]}"
 
 test_begin "parse_arguments: value containing equals"
 unset arguments; declare -A arguments
 extra_arguments=()
+known_arguments=()
 parse_arguments "key=a=b=c"
 assert_eq "a=b=c" "${arguments[key]}"
 
 test_begin "parse_arguments: no arguments at all"
 unset arguments; declare -A arguments
 extra_arguments=()
+known_arguments=()
 out="$(parse_arguments 2>&1)"; rc=$?
 assert_eq 0 "$rc"
 assert_eq 0 "${#extra_arguments[@]}"

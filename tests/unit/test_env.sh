@@ -63,14 +63,14 @@ function load_or_generate_uuid() {
 # Override die to not kill the test runner
 function die() {
 	echo "DIE: $*" >&2
-	return 1
+	exit 1
 }
 
 function die_trace() {
 	local idx="${1:-0}"
 	shift
 	echo "DIE_TRACE: $*" >&2
-	return 1
+	exit 1
 }
 
 # ── Helper to reset global state between tests ──
