@@ -389,6 +389,17 @@ ADDITIONAL_PACKAGES=()
 # only allows the use of ed25519 keys, and requires pubkey authentication)
 ENABLE_SSHD=true
 
+# Install and enable chronyd (NTP client) for automatic time synchronization
+ENABLE_CHRONYD=true
+
+# Install and enable a cron daemon. Options: dcron, cronie, fcron, bcron
+ENABLE_CRON=false
+CRON_TYPE=dcron
+
+# Install and enable a system logger. Options: sysklogd, syslog-ng, metalog
+ENABLE_SYSLOGGER=false
+SYSLOGGER_TYPE=sysklogd
+
 # Enable binary portage packages where available
 ENABLE_BINPKG=false
 

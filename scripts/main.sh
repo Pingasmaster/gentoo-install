@@ -162,6 +162,43 @@ function enable_sshd() {
 	enable_service sshd
 }
 
+function enable_chronyd() {
+	einfo "Installing and enabling chronyd"
+	try emerge --verbose net-misc/chrony
+	enable_service chronyd
+}
+
+function enable_cron() {
+	local cron_pkg
+	local cron_svc
+	case "$CRON_TYPE" in
+		dcron)  cron_pkg="sys-process/dcron";  cron_svc="dcron"  ;;
+		cronie) cron_pkg="sys-process/cronie"; cron_svc="cronie" ;;
+		fcron)  cron_pkg="sys-process/fcron";   cron_svc="fcron"  ;;
+		bcron)  cron_pkg="sys-process/bcron";   cron_svc="bcron"  ;;
+		*) die "Unknown cron type '$CRON_TYPE'" ;;
+	esac
+
+	einfo "Installing and enabling $CRON_TYPE"
+	try emerge --verbose "$cron_pkg"
+	enable_service "$cron_svc"
+}
+
+function enable_syslogger() {
+	local syslog_pkg
+	local syslog_svc
+	case "$SYSLOGGER_TYPE" in
+		sysklogd)  syslog_pkg="app-admin/sysklogd";  syslog_svc="sysklogd"  ;;
+		syslog-ng) syslog_pkg="app-admin/syslog-ng"; syslog_svc="syslog-ng" ;;
+		metalog)   syslog_pkg="app-admin/metalog";   syslog_svc="metalog"   ;;
+		*) die "Unknown syslogger type '$SYSLOGGER_TYPE'" ;;
+	esac
+
+	einfo "Installing and enabling $SYSLOGGER_TYPE"
+	try emerge --verbose "$syslog_pkg"
+	enable_service "$syslog_svc"
+}
+
 function install_authorized_keys() {
 	mkdir_or_die 0700 "/root/"
 	mkdir_or_die 0700 "/root/.ssh"
@@ -633,6 +670,18 @@ EOF
 
 	if [[ $ENABLE_SSHD == "true" ]]; then
 		enable_sshd
+	fi
+
+	if [[ $ENABLE_CHRONYD == "true" ]]; then
+		enable_chronyd
+	fi
+
+	if [[ $ENABLE_CRON == "true" ]]; then
+		enable_cron
+	fi
+
+	if [[ $ENABLE_SYSLOGGER == "true" && $SYSTEMD != "true" ]]; then
+		enable_syslogger
 	fi
 
 	# Install additional packages, if any.

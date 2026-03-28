@@ -329,6 +329,19 @@ KERNEL_TYPES=(
 	"bin"    "bin    | Pre-built binary kernel (gentoo-kernel-bin)"
 )
 
+CRON_TYPES=(
+	"dcron"  "dcron  | Lightweight and simple cron daemon (sys-process/dcron)"
+	"cronie" "cronie | Enhanced cron with PAM and SELinux support (sys-process/cronie)"
+	"fcron"  "fcron  | Command scheduler extending cron and anacron (sys-process/fcron)"
+	"bcron"  "bcron  | Security-focused cron with separated processes (sys-process/bcron)"
+)
+
+SYSLOGGER_TYPES=(
+	"sysklogd"  "sysklogd  | Traditional system logging daemons, good default (app-admin/sysklogd)"
+	"syslog-ng" "syslog-ng | Advanced logger with flexible config (app-admin/syslog-ng)"
+	"metalog"   "metalog   | Highly-configurable system logger (app-admin/metalog)"
+)
+
 function create_single_disk_layout() {
 	create_classic_single_disk_layout "$@"
 }
@@ -657,6 +670,11 @@ function load_default_config() {
 
 	ADDITIONAL_PACKAGES=()
 	ENABLE_SSHD=true
+	ENABLE_CHRONYD=true
+	ENABLE_CRON=false
+	CRON_TYPE=dcron
+	ENABLE_SYSLOGGER=false
+	SYSLOGGER_TYPE=sysklogd
 	ENABLE_BINPKG=false
 	ENABLE_GURU=false
 	KERNEL_TYPE=source
@@ -1243,6 +1261,11 @@ MENU_ITEMS=(
 	"SELECT_MIRRORS_LARGE_FILE"
 	"--------"
 	"ENABLE_SSHD"
+	"ENABLE_CHRONYD"
+	"ENABLE_CRON"
+	"CRON_TYPE"
+	"ENABLE_SYSLOGGER"
+	"SYSLOGGER_TYPE"
 	"ENABLE_BINPKG"
 	"ENABLE_GURU"
 	"KERNEL_TYPE"
@@ -2795,6 +2818,71 @@ function ENABLE_SSHD_menu()  {
 	UNSAVED_CHANGES=true
 }
 
+function ENABLE_CHRONYD_tag()   { echo "Enable chronyd (NTP)"; }
+function ENABLE_CHRONYD_label() { on_off_label "$ENABLE_CHRONYD"; }
+function ENABLE_CHRONYD_show()  { return 0; }
+function ENABLE_CHRONYD_help()  { echo "Install and enable chronyd (NTP client) on the new system. This ensures the system clock is automatically synchronized via NTP after boot."; }
+function ENABLE_CHRONYD_menu()  {
+	on_off_toggle "ENABLE_CHRONYD"
+	UNSAVED_CHANGES=true
+}
+
+function ENABLE_CRON_tag()   { echo "Enable cron"; }
+function ENABLE_CRON_label() { on_off_label "$ENABLE_CRON"; }
+function ENABLE_CRON_show()  { return 0; }
+function ENABLE_CRON_help()  { echo "Install and enable a cron daemon on the new system for scheduling recurring tasks."; }
+function ENABLE_CRON_menu()  {
+	on_off_toggle "ENABLE_CRON"
+	UNSAVED_CHANGES=true
+}
+
+function CRON_TYPE_tag()   { echo " └ Cron daemon"; }
+function CRON_TYPE_label() { echo " └ ($CRON_TYPE)"; }
+function CRON_TYPE_show()  { is_on "$ENABLE_CRON"; }
+function CRON_TYPE_help()  { echo "Select which cron daemon to install. dcron is a lightweight and simple choice. cronie offers PAM and SELinux support. fcron extends cron with anacron capabilities. bcron focuses on security with separated processes."; }
+function CRON_TYPE_menu()  {
+	if menu_radiolist_labeled \
+		"Select cron daemon" \
+		"Select which cron daemon to install." \
+		"$CRON_TYPE" \
+		"${CRON_TYPES[@]}"
+	then
+		CRON_TYPE="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		# Return to menu
+		true
+	fi
+}
+
+function ENABLE_SYSLOGGER_tag()   { echo "Enable system logger"; }
+function ENABLE_SYSLOGGER_label() { on_off_label "$ENABLE_SYSLOGGER"; }
+function ENABLE_SYSLOGGER_show()  { [[ $STAGE3_VARIANT != *systemd* ]]; }
+function ENABLE_SYSLOGGER_help()  { echo "Install and enable a system logger on the new system for collecting and managing log messages."; }
+function ENABLE_SYSLOGGER_menu()  {
+	on_off_toggle "ENABLE_SYSLOGGER"
+	UNSAVED_CHANGES=true
+}
+
+function SYSLOGGER_TYPE_tag()   { echo " └ System logger"; }
+function SYSLOGGER_TYPE_label() { echo " └ ($SYSLOGGER_TYPE)"; }
+function SYSLOGGER_TYPE_show()  { [[ $STAGE3_VARIANT != *systemd* ]] && is_on "$ENABLE_SYSLOGGER"; }
+function SYSLOGGER_TYPE_help()  { echo "Select which system logger to install. sysklogd is a traditional and beginner-friendly choice. syslog-ng is advanced with flexible configuration. metalog is highly configurable."; }
+function SYSLOGGER_TYPE_menu()  {
+	if menu_radiolist_labeled \
+		"Select system logger" \
+		"Select which system logger to install." \
+		"$SYSLOGGER_TYPE" \
+		"${SYSLOGGER_TYPES[@]}"
+	then
+		SYSLOGGER_TYPE="$dialog_out"
+		UNSAVED_CHANGES=true
+	else
+		# Return to menu
+		true
+	fi
+}
+
 function ENABLE_BINPKG_tag()   { echo "Enable binary packages"; }
 function ENABLE_BINPKG_label() { on_off_label "$ENABLE_BINPKG"; }
 function ENABLE_BINPKG_show()  { return 0; }
@@ -2951,6 +3039,11 @@ MUSL=\$([[ \$STAGE3_VARIANT == *musl* ]] && echo "true" || echo "false")
 
 ADDITIONAL_PACKAGES=(${ADDITIONAL_PACKAGES[@]@Q})
 ENABLE_SSHD=${ENABLE_SSHD@Q}
+ENABLE_CHRONYD=${ENABLE_CHRONYD@Q}
+ENABLE_CRON=${ENABLE_CRON@Q}
+CRON_TYPE=${CRON_TYPE@Q}
+ENABLE_SYSLOGGER=${ENABLE_SYSLOGGER@Q}
+SYSLOGGER_TYPE=${SYSLOGGER_TYPE@Q}
 ENABLE_BINPKG=${ENABLE_BINPKG@Q}
 ENABLE_GURU=${ENABLE_GURU@Q}
 KERNEL_TYPE=${KERNEL_TYPE@Q}

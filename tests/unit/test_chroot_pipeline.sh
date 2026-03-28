@@ -15,6 +15,9 @@ function install_kernel()        { log_call "install_kernel"; }
 function generate_fstab()        { log_call "generate_fstab"; }
 function install_authorized_keys() { log_call "install_authorized_keys"; }
 function enable_sshd()           { log_call "enable_sshd"; }
+function enable_chronyd()        { log_call "enable_chronyd"; }
+function enable_cron()           { log_call "enable_cron"; }
+function enable_syslogger()      { log_call "enable_syslogger"; }
 function mount_efivars()         { log_call "mount_efivars"; }
 function mount_by_id()           { log_call "mount_by_id $*"; }
 function maybe_exec()            { :; }
@@ -341,6 +344,51 @@ reset_chroot_state
 ENABLE_SSHD=false
 run_pipeline
 assert_call_log_not_contains "enable_sshd"
+
+test_begin "pipeline: ENABLE_CHRONYD=true calls enable_chronyd"
+reset_chroot_state
+ENABLE_CHRONYD=true
+run_pipeline
+assert_call_log_contains "enable_chronyd"
+
+test_begin "pipeline: ENABLE_CHRONYD=false skips enable_chronyd"
+reset_chroot_state
+ENABLE_CHRONYD=false
+run_pipeline
+assert_call_log_not_contains "enable_chronyd"
+
+test_begin "pipeline: ENABLE_CRON=true calls enable_cron"
+reset_chroot_state
+ENABLE_CRON=true
+run_pipeline
+assert_call_log_contains "enable_cron"
+
+test_begin "pipeline: ENABLE_CRON=false skips enable_cron"
+reset_chroot_state
+ENABLE_CRON=false
+run_pipeline
+assert_call_log_not_contains "enable_cron"
+
+test_begin "pipeline: ENABLE_SYSLOGGER=true + OpenRC calls enable_syslogger"
+reset_chroot_state
+SYSTEMD=false
+ENABLE_SYSLOGGER=true
+run_pipeline
+assert_call_log_contains "enable_syslogger"
+
+test_begin "pipeline: ENABLE_SYSLOGGER=false skips enable_syslogger"
+reset_chroot_state
+SYSTEMD=false
+ENABLE_SYSLOGGER=false
+run_pipeline
+assert_call_log_not_contains "enable_syslogger"
+
+test_begin "pipeline: ENABLE_SYSLOGGER=true + systemd skips enable_syslogger"
+reset_chroot_state
+SYSTEMD=true
+ENABLE_SYSLOGGER=true
+run_pipeline
+assert_call_log_not_contains "enable_syslogger"
 
 test_begin "pipeline: ADDITIONAL_PACKAGES installs extra packages"
 reset_chroot_state

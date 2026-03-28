@@ -122,6 +122,11 @@ function reset_chroot_state() {
 	SELECT_MIRRORS=false
 	SELECT_MIRRORS_LARGE_FILE=false
 	ENABLE_SSHD=false
+	ENABLE_CHRONYD=false
+	ENABLE_CRON=false
+	CRON_TYPE=dcron
+	ENABLE_SYSLOGGER=false
+	SYSLOGGER_TYPE=sysklogd
 	ENABLE_BINPKG=false
 	ENABLE_GURU=false
 	KERNEL_TYPE="source"
